@@ -1,0 +1,45 @@
+<resources>
+    <string name="app_name">QRienteering Station</string>
+
+    <!-- Menu item strings -->
+    <string name="action_download_mode">Download mode</string>
+    <string name="action_register_mode">Register mode</string>
+    <string name="action_mass_start_mode">Mass start mode</string>
+    <string name="action_settings">Change settings</string>
+    <string name="action_get_logs">Get event logs</string>
+
+    <!-- Default text box values -->
+    <string name="default_event_name">No event chosen</string>
+    <string name="default_mode">Download mode</string>
+
+    <!-- Strings used for fragments for navigation -->
+    <string name="first_fragment_label">QRienteering Event Chooser</string>
+    <string name="second_fragment_label">QRienteering Event Manager</string>
+    <string name="next">Next</string>
+    <string name="previous">Previous</string>
+
+    <string name="hello_first_fragment">Hello first fragment</string>
+    <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
+
+
+    <!-- Preference Titles -->
+    <string name="general_settings">General</string>
+
+    <!-- General settings Preferences -->
+    <string name="settings_url">Site URL</string>
+    <string name="settings_key">Site access key</string>
+    <string name="settings_site_timeout">Site access timeout</string>
+
+
+    <!-- For the individual entries in the finisher / register view -->
+    <string name="no_such_member">No such member</string>
+    <string name="course">Course</string>
+    <string name="contact">Emergency contact number</string>
+    <string name="name">Name</string>
+    <string name="download">Retry download</string>
+    <string name="register">Register</string>
+    <string name="close_entry">Close notification</string>
+
+    <!-- To move forward to event management -->
+    <string name="run_chosen_event">Use chosen event</string>
+</resources>

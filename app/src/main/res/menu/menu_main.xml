@@ -1,0 +1,26 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context="com.example.playgroundtwo.MainActivity">
+    <item
+        android:id="@+id/action_enter_download_mode"
+        android:orderInCategory="100"
+        android:title="@string/action_download_mode" />
+    <item
+        android:id="@+id/action_enter_register_mode"
+        android:orderInCategory="101"
+        android:title="@string/action_register_mode" />
+    <item
+        android:id="@+id/action_enter_mass_start_mode"
+        android:orderInCategory="102"
+        android:title="@string/action_mass_start_mode" />
+    <item
+        android:id="@+id/action_settings"
+        android:orderInCategory="103"
+        android:title="@string/action_settings"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_get_logs"
+        android:orderInCategory="104"
+        android:title="@string/action_get_logs" />
+</menu>
