@@ -7,6 +7,7 @@
     tools:context=".FirstFragment">
 
     <LinearLayout
+        android:id="@+id/event_chooser_layout"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical">
@@ -17,49 +18,11 @@
             android:layout_height="wrap_content"
             android:text="@string/run_chosen_event" />
 
-        <ScrollView
+        <TextView
+            android:id="@+id/event_chooser_status_field"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:scrollIndicators="left"
-            android:scrollbarAlwaysDrawVerticalTrack="true"
-            android:scrollbars="vertical">
-
-            <LinearLayout
-                android:id="@+id/stick_info_layout"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:divider="@color/purple_700"
-                android:orientation="vertical"
-                android:scrollbars="vertical"
-                android:showDividers="middle|end">
-
-                <TextView
-                    android:id="@+id/textview_first"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/hello_first_fragment"
-                    android:textAlignment="center" />
-
-                <Button
-                    android:id="@+id/button"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Button" />
-
-                <TextView
-                    android:id="@+id/textView3"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="dummy2" />
-
-                <TextView
-                    android:id="@+id/textView4"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="dummy3" />
-            </LinearLayout>
-        </ScrollView>
+            android:layout_height="wrap_content"
+            android:layout_gravity="center" />
 
     </LinearLayout>
 

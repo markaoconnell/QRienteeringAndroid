@@ -4,13 +4,13 @@
     <PreferenceCategory app:title="@string/general_settings">
 
         <EditTextPreference
-            android:defaultValue="http://www.mkoconnell.com/"
+            android:defaultValue="@string/default_invalid_url"
             android:key="@string/settings_url"
             android:selectAllOnFocus="true"
             android:singleLine="true"
             android:title="@string/settings_url" />
         <EditTextPreference
-            android:defaultValue="NEOC_Test"
+            android:defaultValue="@string/default_invalid_key"
             android:key="@string/settings_key"
             android:selectAllOnFocus="true"
             android:singleLine="true"
