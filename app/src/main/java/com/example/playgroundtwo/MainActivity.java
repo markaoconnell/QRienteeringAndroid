@@ -33,6 +33,9 @@ public class MainActivity extends AppCompatActivity {
     private static ExecutorService executorService = Executors.newFixedThreadPool(15);;
     private static Handler mainLoopHandler = HandlerCompat.createAsync(Looper.getMainLooper());
 
+    private String eventId;
+    private String xlatedKey;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -108,5 +111,22 @@ public class MainActivity extends AppCompatActivity {
 
     public static Handler getUIHandler() {
         return (mainLoopHandler);
+    }
+
+    public void setEventName(String eventName) {
+        binding.textEventNameArea.setText(eventName);
+    }
+
+    public void setEventAndKey(String event, String key) {
+        eventId = event;
+        xlatedKey = key;
+    }
+
+    public String getEventId() {
+        return (eventId);
+    }
+
+    public String getKeyForEvent() {
+        return(xlatedKey);
     }
 }

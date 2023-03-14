@@ -6,35 +6,27 @@ import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.navigation.fragment.NavHostFragment;
 import androidx.preference.PreferenceManager;
 
-import com.example.playgroundtwo.background.BaseBackgroundTask;
-import com.example.playgroundtwo.background.BaseBackgroundTaskCallback;
 import com.example.playgroundtwo.databinding.FragmentFirstBinding;
-import com.example.playgroundtwo.url.GetEventList;
+import com.example.playgroundtwo.QRienteeringCalls.GetEventList;
 import com.example.playgroundtwo.url.UrlCallResults;
 import com.example.playgroundtwo.url.UrlCaller;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLConnection;
-
-import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 
 public class FirstFragment extends Fragment {
 
     private FragmentFirstBinding binding;
+    private UrlCaller urlCaller;
+    private String xlatedKey;
 
     @Override
     public View onCreateView(
@@ -68,17 +60,15 @@ public class FirstFragment extends Fragment {
             binding.eventChooserStatusField.setText("Getting available events");
             binding.eventChooserStatusField.setTextColor(getResources().getColor(com.google.android.material.R.color.design_default_color_primary));
 
-            UrlCaller urlCaller = new UrlCaller(settingsUrl, settingsKey, siteTimeout);
+            urlCaller = new UrlCaller(settingsUrl, settingsKey, siteTimeout);
             GetEventList eventGetter = new GetEventList(urlCaller);
             eventGetter.setHandler(MainActivity.getUIHandler());
             eventGetter.setCallback(t -> {
                 UrlCallResults results = eventGetter.getUrlCallResults();
                 if (results.isSuccess()) {
                     List<Pair<String, String>> eventList = eventGetter.getEventListResult();
-                    String[] eventNames = eventList.stream().map((item) -> (item.second)).toArray(String[]::new);
-                    binding.eventChooserStatusField.setText(String.format("Found %d events: %s", eventList.size(), String.join(" -- ", eventNames)));
-                    binding.eventChooserStatusField.setTextColor(getResources().getColor(com.google.android.material.R.color.design_default_color_primary));
-                    binding.buttonFirst.setEnabled(true);
+                    xlatedKey = eventGetter.getXlatedKey();
+                    chooseEvent(eventList);
                 } else if (results.isConnectivityFailure()) {
                     binding.buttonFirst.setEnabled(false);
                     binding.eventChooserStatusField.setText(String.format("Cannot contact site (%s), please check connectivity - message %s",
@@ -117,4 +107,46 @@ public class FirstFragment extends Fragment {
         binding = null;
     }
 
+    private void chooseEvent(List<Pair<String, String>> eventList) {
+        if (eventList.size() == 0) {
+            binding.buttonFirst.setEnabled(false);
+            binding.eventChooserStatusField.setText("No currently open events");
+            binding.eventChooserStatusField.setTextColor(getResources().getColor(com.google.android.material.R.color.design_default_color_error));
+        }
+        else if (eventList.size() == 1) {
+            useSelectedCourse(eventList.get(0));
+        }
+        else {
+            RadioGroup rg = new RadioGroup(getActivity());
+            for (int i = 0; i < eventList.size(); i++) {
+                Pair<String, String> course = eventList.get(i);
+                RadioButton rb = new RadioButton(getActivity());
+                rb.setText(course.second);
+                rb.setId(i);
+                rg.addView(rb);
+                if (i == 0) {
+                    rb.setChecked(true);
+                }
+            }
+
+            binding.eventChooserLayout.addView(rg);
+
+            binding.buttonFirst.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    int selection = rg.getCheckedRadioButtonId();
+                    Pair<String, String> chosenCourse = eventList.get(selection);
+                    useSelectedCourse(chosenCourse);
+                }
+            });
+            binding.buttonFirst.setEnabled(true);
+        }
+    }
+
+    private void useSelectedCourse(Pair<String, String> chosenEvent) {
+        ((MainActivity) getActivity()).setEventName(chosenEvent.second);
+        ((MainActivity) getActivity()).setEventAndKey(chosenEvent.first, xlatedKey);
+        NavHostFragment.findNavController(FirstFragment.this)
+                .navigate(R.id.action_FirstFragment_to_SecondFragment);
+    }
 }

@@ -32,6 +32,11 @@ public class UrlCaller {
         return (urlString);
     }
 
+    public String makeUrlToCall(String formatString, String extraParams) {
+        String urlString = String.format(formatString, siteUrl, siteAccessKey) + "&" + extraParams;
+        return (urlString);
+    }
+
 
     public void makeUrlCall(String urlToCall) {
         StringBuilder resultHTML = new StringBuilder();

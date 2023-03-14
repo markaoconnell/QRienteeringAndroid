@@ -1,9 +1,12 @@
-package com.example.playgroundtwo.url;
+package com.example.playgroundtwo.QRienteeringCalls;
 
 import android.util.Base64;
 import android.util.Pair;
 
 import com.example.playgroundtwo.background.BaseBackgroundTask;
+import com.example.playgroundtwo.url.UrlCallResults;
+import com.example.playgroundtwo.url.UrlCaller;
+import com.example.playgroundtwo.url.UrlCallerException;
 
 import java.util.List;
 import java.util.ArrayList;
