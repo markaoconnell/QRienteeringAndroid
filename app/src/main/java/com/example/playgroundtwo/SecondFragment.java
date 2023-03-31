@@ -17,8 +17,12 @@ import com.example.playgroundtwo.QRienteeringCalls.GetCourseList;
 import com.example.playgroundtwo.QRienteeringCalls.GetEventList;
 import com.example.playgroundtwo.databinding.FragmentSecondBinding;
 import com.example.playgroundtwo.databinding.StickEntryBinding;
+import com.example.playgroundtwo.sireader.SiReaderThread;
+import com.example.playgroundtwo.sireader.SiResultHandler;
+import com.example.playgroundtwo.sireader.SiStickResult;
 import com.example.playgroundtwo.url.UrlCallResults;
 import com.example.playgroundtwo.url.UrlCaller;
+import com.example.playgroundtwo.userinfo.UserInfo;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,12 +33,14 @@ public class SecondFragment extends Fragment {
     private UrlCaller urlCaller;
     private String eventId;
     private String accessKey;
+    private SiReaderThread siReaderThread;
 
     private List<Pair<String, String>> courseList = new ArrayList<>();
     private String [] courseNames = new String[0];
-
+    SharedPreferences sharedPreferences;
 
     private static int numberResults = 3;
+    private static List<UserInfo> actualResults = new ArrayList<>();
 
     @Override
     public View onCreateView(
@@ -44,7 +50,7 @@ public class SecondFragment extends Fragment {
 
         binding = FragmentSecondBinding.inflate(inflater, container, false);
 
-        SharedPreferences sharedPreferences =
+        sharedPreferences =
                 PreferenceManager.getDefaultSharedPreferences(this.getActivity() /* Activity context */);
         String defaultInvalidURL = getResources().getString(R.string.default_invalid_url);
         String settingsUrl = sharedPreferences.getString(getResources().getString(R.string.settings_url), defaultInvalidURL);
@@ -76,70 +82,95 @@ public class SecondFragment extends Fragment {
 
         MainActivity.submitBackgroundTask(courseListGetter);
 
+        for (UserInfo thisUser : actualResults) {
+            addResultEntry(inflater, thisUser);
+        }
+
+        siReaderThread = new SiReaderThread();
+        siReaderThread.setHandler(MainActivity.getUIHandler());
+        siReaderThread.setSiResultHandler(new SiResultHandler() {
+            @Override
+            public void processResult(SiStickResult result) {
+                UserInfo userInfo = new UserInfo(result);
+                actualResults.add(userInfo);
+                addResultEntry(inflater, userInfo);
+            }
+        });
+
+        siReaderThread.start();
+
         for (int thisResult = 0; thisResult < numberResults; thisResult++) {
-            StickEntryBinding stickEntryBinding = StickEntryBinding.inflate(inflater, binding.stickInfoLayout, true);
-            stickEntryBinding.stickNumber.setText(String.valueOf(thisResult));
+            SiStickResult fakeResult = new SiStickResult(thisResult, 0, 0, null);
+            UserInfo userInfo = new UserInfo(fakeResult);
 
-            String settingsUrlTextField = sharedPreferences.getString(getResources().getString(R.string.settings_url), getResources().getString(R.string.default_invalid_url));
-            stickEntryBinding.stickMemberName.setText(settingsUrlTextField);
-
-            String settingsTimeout = sharedPreferences.getString(getResources().getString(R.string.settings_site_timeout), "10");
-            stickEntryBinding.timeTakenField.setText(settingsTimeout + ":" + thisResult);
-
-            String settingsKey = sharedPreferences.getString(getResources().getString(R.string.settings_key), getResources().getString(R.string.default_invalid_key));
-            stickEntryBinding.courseField.setText(settingsKey);
-            stickEntryBinding.registerLayout.setVisibility(View.GONE);
-
-            stickEntryBinding.registerButton.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    ArrayAdapter<String> courseChoices = new ArrayAdapter<>(SecondFragment.this.getContext(), androidx.appcompat.R.layout.support_simple_spinner_dropdown_item, courseNames);
-                    stickEntryBinding.courseChoiceSpinner.setAdapter(courseChoices);
-
-                    stickEntryBinding.registerLayout.setVisibility(View.VISIBLE);
-                    stickEntryBinding.stickNavigationLayout.setVisibility(View.GONE);
-
-                    stickEntryBinding.registerNameField.setText(stickEntryBinding.stickMemberName.getText());
-                }
-            });
-
-            stickEntryBinding.cancelRegistrationButton.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    stickEntryBinding.stickNavigationLayout.setVisibility(View.VISIBLE);
-                    stickEntryBinding.registerLayout.setVisibility(View.GONE);
-                }
-            });
-
-            stickEntryBinding.closeButton.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    binding.stickInfoLayout.removeView(stickEntryBinding.getRoot());
-                }
-            });
-
-            stickEntryBinding.registrationOkButton.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    stickEntryBinding.stickMemberName.setText(stickEntryBinding.registerNameField.getText());
-                    stickEntryBinding.courseField.setText(courseNames[stickEntryBinding.courseChoiceSpinner.getSelectedItemPosition()]);
-                    stickEntryBinding.statusField.setText("Registered");
-                    stickEntryBinding.stickNumber.setText(stickEntryBinding.emergencyContact.getText());
-
-                    if (stickEntryBinding.emergencyContact.getText().length() < 7) {
-                        stickEntryBinding.statusField.setText("Invalid contact number");
-                    }
-
-                    stickEntryBinding.stickNavigationLayout.setVisibility(View.VISIBLE);
-                    stickEntryBinding.registerLayout.setVisibility(View.GONE);
-                }
-            });
+            addResultEntry(inflater, userInfo);
         }
 
         numberResults++;
 
         return binding.getRoot();
 
+    }
+
+    private void addResultEntry(LayoutInflater inflater, UserInfo userInfo) {
+        StickEntryBinding stickEntryBinding = StickEntryBinding.inflate(inflater, binding.stickInfoLayout, true);
+        stickEntryBinding.stickNumber.setText(String.valueOf(userInfo.getReadResults().getStickNumber()));
+
+        String settingsUrlTextField = sharedPreferences.getString(getResources().getString(R.string.settings_url), getResources().getString(R.string.default_invalid_url));
+        stickEntryBinding.stickMemberName.setText(settingsUrlTextField);
+
+        String settingsTimeout = sharedPreferences.getString(getResources().getString(R.string.settings_site_timeout), "10");
+        stickEntryBinding.timeTakenField.setText(settingsTimeout + ":" + userInfo.getReadResults().getStartTime());
+
+        String settingsKey = sharedPreferences.getString(getResources().getString(R.string.settings_key), getResources().getString(R.string.default_invalid_key));
+        stickEntryBinding.courseField.setText(settingsKey);
+        stickEntryBinding.registerLayout.setVisibility(View.GONE);
+
+        stickEntryBinding.registerButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                ArrayAdapter<String> courseChoices = new ArrayAdapter<>(SecondFragment.this.getContext(), androidx.appcompat.R.layout.support_simple_spinner_dropdown_item, courseNames);
+                stickEntryBinding.courseChoiceSpinner.setAdapter(courseChoices);
+
+                stickEntryBinding.registerLayout.setVisibility(View.VISIBLE);
+                stickEntryBinding.stickNavigationLayout.setVisibility(View.GONE);
+
+                stickEntryBinding.registerNameField.setText(stickEntryBinding.stickMemberName.getText());
+            }
+        });
+
+        stickEntryBinding.cancelRegistrationButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                stickEntryBinding.stickNavigationLayout.setVisibility(View.VISIBLE);
+                stickEntryBinding.registerLayout.setVisibility(View.GONE);
+            }
+        });
+
+        stickEntryBinding.closeButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                binding.stickInfoLayout.removeView(stickEntryBinding.getRoot());
+                actualResults.remove(userInfo);
+            }
+        });
+
+        stickEntryBinding.registrationOkButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                stickEntryBinding.stickMemberName.setText(stickEntryBinding.registerNameField.getText());
+                stickEntryBinding.courseField.setText(courseNames[stickEntryBinding.courseChoiceSpinner.getSelectedItemPosition()]);
+                stickEntryBinding.statusField.setText("Registered");
+                stickEntryBinding.stickNumber.setText(stickEntryBinding.emergencyContact.getText());
+
+                if (stickEntryBinding.emergencyContact.getText().length() < 7) {
+                    stickEntryBinding.statusField.setText("Invalid contact number");
+                }
+
+                stickEntryBinding.stickNavigationLayout.setVisibility(View.VISIBLE);
+                stickEntryBinding.registerLayout.setVisibility(View.GONE);
+            }
+        });
     }
 
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
@@ -156,6 +187,7 @@ public class SecondFragment extends Fragment {
 
     @Override
     public void onDestroyView() {
+        siReaderThread.stopThread();
         super.onDestroyView();
         binding = null;
     }
