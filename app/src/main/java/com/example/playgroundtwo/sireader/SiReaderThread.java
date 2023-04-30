@@ -44,7 +44,7 @@ public class SiReaderThread extends Thread {
 
             nextResultReport--;
             if (nextResultReport <= 0) {
-                nextResultReport = r.nextInt(20) + 10;
+                nextResultReport = r.nextInt(20) + 30;
                 int stick = 2108369 + r.nextInt(5);
                 SiStickResult result = new SiStickResult(stick, r.nextInt(10800) + 36000, 0, null);
                 processReadStick(result);

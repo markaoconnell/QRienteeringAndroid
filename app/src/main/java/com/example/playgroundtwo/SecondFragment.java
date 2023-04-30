@@ -7,6 +7,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
@@ -22,6 +23,8 @@ import com.example.playgroundtwo.sireader.SiResultHandler;
 import com.example.playgroundtwo.sireader.SiStickResult;
 import com.example.playgroundtwo.url.UrlCallResults;
 import com.example.playgroundtwo.url.UrlCaller;
+import com.example.playgroundtwo.usbhandler.UsbProber;
+import com.example.playgroundtwo.usbhandler.UsbProberCallback;
 import com.example.playgroundtwo.userinfo.UserInfo;
 
 import java.util.ArrayList;
@@ -34,12 +37,13 @@ public class SecondFragment extends Fragment {
     private String eventId;
     private String accessKey;
     private SiReaderThread siReaderThread;
+    private UsbProber usbProber;
 
     private List<Pair<String, String>> courseList = new ArrayList<>();
     private String [] courseNames = new String[0];
     SharedPreferences sharedPreferences;
 
-    private static int numberResults = 3;
+    private static int numberResults = 1;
     private static List<UserInfo> actualResults = new ArrayList<>();
 
     @Override
@@ -99,6 +103,12 @@ public class SecondFragment extends Fragment {
 
         siReaderThread.start();
 
+        usbProber = new UsbProber((MainActivity) this.getActivity());
+        usbProber.setHandler(MainActivity.getUIHandler());
+        TextView infoTextWidget = binding.textviewFirst;
+        usbProber.setCallback(infoString -> infoTextWidget.setText(infoTextWidget.getText() + "\n" + infoString));
+        usbProber.start();
+
         for (int thisResult = 0; thisResult < numberResults; thisResult++) {
             SiStickResult fakeResult = new SiStickResult(thisResult, 0, 0, null);
             UserInfo userInfo = new UserInfo(fakeResult);
@@ -106,7 +116,7 @@ public class SecondFragment extends Fragment {
             addResultEntry(inflater, userInfo);
         }
 
-        numberResults++;
+        //numberResults++;
 
         return binding.getRoot();
 
@@ -188,6 +198,7 @@ public class SecondFragment extends Fragment {
     @Override
     public void onDestroyView() {
         siReaderThread.stopThread();
+        usbProber.stopRunning();
         super.onDestroyView();
         binding = null;
     }
