@@ -129,12 +129,12 @@ public class SIProtocol {
         return (writtenBytes == buffer.length) ? 0 : -1;
     }
 
-    public byte[] readMsg(int timeout)
+    public byte[] readMsg(int timeout) throws SiStationDisconnectedException
     {
         return this.readMsg(timeout, (byte) 0x00);
     }
 
-    public byte[] readMsg(int timeout, byte filter)
+    public byte[] readMsg(int timeout, byte filter) throws SiStationDisconnectedException
     {
         byte[] buffer;
         int bufferSize = 0;
@@ -159,7 +159,7 @@ public class SIProtocol {
                 }
                 catch (IOException ioe) {
                     bytesRead = 0;
-                    callback.updateStatus("IOException on read: " + ioe.getMessage());
+                    throw new SiStationDisconnectedException("Read from SI station failed", ioe);
                 }
 
                 if (bytesRead <= 0) {

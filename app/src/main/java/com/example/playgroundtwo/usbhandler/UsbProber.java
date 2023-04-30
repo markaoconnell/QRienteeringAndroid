@@ -17,6 +17,7 @@ import android.util.Log;
 import com.example.playgroundtwo.MainActivity;
 import com.example.playgroundtwo.SI.CardReader;
 import com.example.playgroundtwo.SI.SIReader;
+import com.example.playgroundtwo.SI.SiStationDisconnectedException;
 import com.hoho.android.usbserial.driver.Cp21xxSerialDriver;
 import com.hoho.android.usbserial.driver.ProbeTable;
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
@@ -86,7 +87,7 @@ public class UsbProber extends Thread {
     private static final String ACTION_USB_PERMISSION =
             "com.android.example.USB_PERMISSION";
 
-    private final static String myLogId = "MOC_QR_UsbProber";
+    public final static String myLogId = "MOC_QR_UsbProber";
 
     /*
     private final BroadcastReceiver usbReceiver = new BroadcastReceiver() {
@@ -155,22 +156,34 @@ public class UsbProber extends Thread {
         }
 
         SIReader reader = new SIReader(port);
-        if (reader.probeDevice(this)) {
-            updateStatus("Waiting for card insert");
-            CardReader cardReader = new CardReader(reader, this);
-            CardReader.CardEntry siCard = null;
+        try {
+            if (reader.probeDevice(this)) {
+                updateStatus("Waiting for card insert");
+                CardReader cardReader = new CardReader(reader, this);
+                CardReader.CardEntry siCard = null;
 //            SIReader.SiCardInfo siCard = new SIReader.SiCardInfo();
-            while (!this.stopRunning) {
-                siCard = cardReader.readCardOnce();
-                if (siCard != null) {
-                    String punchString = siCard.punches.stream().map(punch -> (punch.getCode() + ":" + punch.getTime())).collect(Collectors.joining(","));
-                    updateStatus(String.format("Read card %d, start %d, finish %d, punches: %s", siCard.cardId, siCard.startTime, siCard.finishTime, punchString));
+                while (!this.stopRunning) {
+                    siCard = cardReader.readCardOnce();
+                    if (siCard != null) {
+                        if (siCard.cardId == 0) {
+                            // The card must have been removed from the reader while trying to read the data
+                            // Reset the station
+                            updateStatus("Received cardId of 0 (card removed while reading?), sending Ack to station");
+                            reader.sendAck();
+                        } else {
+                            String punchString = siCard.punches.stream().map(punch -> (punch.getCode() + ":" + punch.getTime())).collect(Collectors.joining(","));
+                            updateStatus(String.format("Read card %d, start %d, finish %d, punches: %s", siCard.cardId, siCard.startTime, siCard.finishTime, punchString));
+                        }
+                    }
                 }
+            } else {
+                updateStatus("Device probe failed, exiting");
             }
         }
-        else {
-            updateStatus("Device probe failed, exiting");
+        catch (SiStationDisconnectedException sde) {
+            updateStatus("Possible station disconnection?  Exiting SI reader");
         }
+
         reader.close();
         return;
 /*

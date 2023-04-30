@@ -169,7 +169,7 @@ public class CardReader  {
         return false;
     }
 
-    public CardEntry readCardOnce()
+    public CardEntry readCardOnce() throws SiStationDisconnectedException
     {
         CardEntry entry = null;
         byte[] msg;
@@ -177,7 +177,7 @@ public class CardReader  {
         SIProtocol proto = siReader.getProtoObj();
         SIReader.SiCardInfo cardInfo = new SIReader.SiCardInfo();
 
-        if (siReader.waitForCardInsert(500, cardInfo, null)) {
+        if (siReader.waitForCardInsert(500, cardInfo, callback)) {
             switch(cardInfo.format) {
                 case (byte)0xe5: {
                     entry = new CardEntry();
@@ -186,7 +186,7 @@ public class CardReader  {
                     this.emitReadStarted(cardInfo);
 
                     proto.writeMsg((byte) 0xb1, null, true);
-                    reply = proto.readMsg(5000, (byte) 0xb1);
+                    reply = proto.readMsg(2000, (byte) 0xb1);
                     if (reply != null && card5EntryParse(reply, entry)) {
                         proto.writeAck();
                         // EMIT card read out
@@ -209,7 +209,7 @@ public class CardReader  {
                     for (int i = 0; i < 7; i++) {
                         msg[0] = blocks[i];
                         proto.writeMsg((byte) 0xe1, msg, true);
-                        byte[] tmpReply = proto.readMsg(5000, (byte) 0xe1);
+                        byte[] tmpReply = proto.readMsg(2000, (byte) 0xe1);
                         if (tmpReply == null || tmpReply.length != 128 + 6 + 3) {
                             // EMIT card read failed
                             reply = null;
@@ -245,7 +245,7 @@ public class CardReader  {
 
                     msg = new byte[]{0x00};
                     proto.writeMsg((byte) 0xef, msg, true);
-                    byte[] tmpReply = proto.readMsg(5000, (byte) 0xef);
+                    byte[] tmpReply = proto.readMsg(2000, (byte) 0xef);
                     if (tmpReply == null || tmpReply.length != 128 + 6 + 3) {
                         // EMIT card read failed
                         this.emitReadCanceled();
@@ -266,7 +266,7 @@ public class CardReader  {
                     for (int i=nextBlock; i<nextBlock+blockCount; i++) {
                         msg[0] = (byte)i;
                         proto.writeMsg((byte)0xef, msg, true);
-                        tmpReply = proto.readMsg(5000, (byte)0xef);
+                        tmpReply = proto.readMsg(2000, (byte)0xef);
                         if (tmpReply == null || tmpReply.length != 128 + 6 + 3) {
                             // EMIT card read failed
                             reply = null;
@@ -297,19 +297,17 @@ public class CardReader  {
     {
         boolean ret = false;
         int offset = 0;
+
         if (data.length == 136) {
             // Start at data part
             offset += 5;
             // Get cardId
-            if (data[offset+6] == 0x00 || data[offset+6] == 0x01) {
-                entry.cardId = (byteToUnsignedInt(data[offset+4]) << 8) + byteToUnsignedInt(data[offset+5]);
+            entry.cardId = ((byteToUnsignedInt(data[offset + 4]) << 8) + byteToUnsignedInt(data[offset + 5]));
+            int highByte = byteToUnsignedInt(data[offset + 6]);
+            if ((highByte >= 2) && (highByte <= 5)) {
+                entry.cardId += (highByte * 100000);
             }
-            else if (byteToUnsignedInt(data[offset+6]) < 5) {
-                entry.cardId = byteToUnsignedInt(data[offset+6])*100000 + (byteToUnsignedInt(data[offset+4]) << 8) + byteToUnsignedInt(data[offset+5]);
-            }
-            else {
-                entry.cardId = (byteToUnsignedInt(data[offset+6]) << 16) + (byteToUnsignedInt(data[offset+4]) << 8) + byteToUnsignedInt(data[offset+5]);
-            }
+
             entry.startTime = (byteToUnsignedInt(data[offset+19]) << 8) + byteToUnsignedInt(data[offset+20]);
             entry.finishTime = (byteToUnsignedInt(data[offset+21]) << 8) + byteToUnsignedInt(data[offset+22]);
             entry.checkTime = (byteToUnsignedInt(data[offset+25]) << 8) + byteToUnsignedInt(data[offset+26]);
@@ -321,6 +319,8 @@ public class CardReader  {
                 punch.time = (byteToUnsignedInt(data[baseoffset+1]) << 8) + byteToUnsignedInt(data[baseoffset+2]);
                 entry.punches.add(punch);
             }
+
+            // Handle non-timed punches - this will confuse things but I guess ok??
             for (int i=30; i<punchCount; i++) {
                 Punch punch = new Punch();
                 int baseoffset = offset + 32 + (i-30)*16;
@@ -329,7 +329,7 @@ public class CardReader  {
                 entry.punches.add(punch);
             }
 
-            card5TimeAdjust(entry);
+            //card5TimeAdjust(entry);
 
             ret = true;
         }
