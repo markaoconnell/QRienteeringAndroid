@@ -51,11 +51,10 @@ public class SIReader {
 
     // logging tag
     private static final String MY_LOG_ID = UsbProber.myLogId;
-    private static final String ACTION_USB_PERMISSION = "com.svenstorp.siplayground.USB_PERMISSION";
 
     private UsbSerialPort serialPort;
 
-    private SIProtocol siprot;
+    private SIProtocol siStationIoHandler;
     private Info deviceInfo;
 
     public SIReader(UsbSerialPort serialPort)
@@ -74,7 +73,7 @@ public class SIReader {
             }
         }
         serialPort = null;
-        siprot = null;
+        siStationIoHandler = null;
         deviceInfo = null;
     }
 
@@ -90,16 +89,16 @@ public class SIReader {
 
     public SIProtocol getProtoObj()
     {
-        return siprot;
+        return siStationIoHandler;
     }
 
     public boolean waitForCardInsert(int timeout, SiCardInfo cardInfo, UsbProber callback) throws SiStationDisconnectedException
     {
-        if (siprot == null) {
+        if (siStationIoHandler == null) {
             return false;
         }
 
-        byte[] reply = siprot.readMsg(timeout);
+        byte[] reply = siStationIoHandler.readMsg(timeout);
         if (reply != null && reply.length > 0) {
             switch(reply[1]) {
                 case (byte) 0xe5:
@@ -146,15 +145,15 @@ public class SIReader {
 
     public void sendAck()
     {
-        if (siprot != null) {
-            siprot.writeAck();
+        if (siStationIoHandler != null) {
+            siStationIoHandler.writeAck();
         }
     }
 
     public void sendNak()
     {
-        if (siprot != null) {
-            siprot.writeNak();
+        if (siStationIoHandler != null) {
+            siStationIoHandler.writeNak();
         }
     }
 
@@ -165,13 +164,7 @@ public class SIReader {
         byte[] msg;
         byte[] reply;
 
-        siprot = new SIProtocol(serialPort, callback);
-
-/*
-        siReaderDevice.setDataBits(UsbSerialInterface.DATA_BITS_8);
-        siReaderDevice.setParity(UsbSerialInterface.PARITY_NONE);
-        siReaderDevice.setFlowControl(UsbSerialInterface.FLOW_CONTROL_OFF);
- */
+        siStationIoHandler = new SIProtocol(serialPort, callback);
 
         // Start with determine baudrate
         if (!setBaudRate(38400)){
@@ -182,9 +175,9 @@ public class SIReader {
 
         //callback.updateStatus("Writing first command");
         msg = new byte[]{0x4d};
-        int result = siprot.writeMsg((byte)0xf0, msg, true);
+        int result = siStationIoHandler.writeMsg((byte)0xf0, msg, true);
         //callback.updateStatus(String.format("Reading first reply, write response was %d", result));
-        reply = siprot.readMsg(1000, (byte)0xf0);
+        reply = siStationIoHandler.readMsg(1000, (byte)0xf0);
         //callback.updateStatus(String.format("First read returned, %d bytes read", (reply != null) ? reply.length : -1));
         if (reply == null || reply.length == 0) {
            // callback.updateStatus("First reply was empty");
@@ -196,15 +189,15 @@ public class SIReader {
             }
         }
 
-        siprot.writeMsg((byte)0xf0, msg, true);
-        reply = siprot.readMsg(1000, (byte)0xf0);
+        siStationIoHandler.writeMsg((byte)0xf0, msg, true);
+        reply = siStationIoHandler.readMsg(1000, (byte)0xf0);
         //callback.updateStatus(String.format("Second read returned, %d bytes read", (reply != null) ? reply.length : -1));
         if (reply != null && reply.length > 0) {
             Log.d(MY_LOG_ID, "Unit responded, reading device info");
             //callback.updateStatus("Unit responded, reading device info");
             msg = new byte[]{0x00, 0x75};
-            siprot.writeMsg((byte) 0x83, msg, true);
-            reply = siprot.readMsg(6000, (byte) 0x83);
+            siStationIoHandler.writeMsg((byte) 0x83, msg, true);
+            reply = siStationIoHandler.readMsg(6000, (byte) 0x83);
 
             if (reply != null && reply.length >= 124) {
                 Log.d(MY_LOG_ID, "Got device info response");
@@ -220,8 +213,8 @@ public class SIReader {
                 //callback.updateStatus("Invalid device info response, trying short info");
 
                 msg = new byte[]{0x00, 0x07};
-                siprot.writeMsg((byte) 0x83, msg, true);
-                reply = siprot.readMsg(6000, (byte)0x83);
+                siStationIoHandler.writeMsg((byte) 0x83, msg, true);
+                reply = siStationIoHandler.readMsg(6000, (byte)0x83);
 
                 if (reply != null && reply.length >= 10) {
                     Log.d(MY_LOG_ID, "Got device info response");

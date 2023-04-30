@@ -16,6 +16,7 @@ import androidx.preference.PreferenceManager;
 
 import com.example.playgroundtwo.QRienteeringCalls.GetCourseList;
 import com.example.playgroundtwo.QRienteeringCalls.GetEventList;
+import com.example.playgroundtwo.QRienteeringCalls.UploadResults;
 import com.example.playgroundtwo.databinding.FragmentSecondBinding;
 import com.example.playgroundtwo.databinding.StickEntryBinding;
 import com.example.playgroundtwo.sireader.SiReaderThread;
@@ -33,9 +34,10 @@ import java.util.List;
 public class SecondFragment extends Fragment {
 
     private FragmentSecondBinding binding;
-    private UrlCaller urlCaller;
     private String eventId;
     private String accessKey;
+    private String settingsUrl;
+    private int siteTimeout;
     private SiReaderThread siReaderThread;
     private UsbProber usbProber;
 
@@ -57,10 +59,9 @@ public class SecondFragment extends Fragment {
         sharedPreferences =
                 PreferenceManager.getDefaultSharedPreferences(this.getActivity() /* Activity context */);
         String defaultInvalidURL = getResources().getString(R.string.default_invalid_url);
-        String settingsUrl = sharedPreferences.getString(getResources().getString(R.string.settings_url), defaultInvalidURL);
+        settingsUrl = sharedPreferences.getString(getResources().getString(R.string.settings_url), defaultInvalidURL);
         String siteTimeoutString = sharedPreferences.getString(getResources().getString(R.string.settings_site_timeout), "10");
 
-        int siteTimeout = 10;
         try {
             siteTimeout = Integer.parseInt(siteTimeoutString);
         }
@@ -71,8 +72,8 @@ public class SecondFragment extends Fragment {
         eventId = ((MainActivity) getActivity()).getEventId();
         accessKey = ((MainActivity) getActivity()).getKeyForEvent();
 
-        urlCaller = new UrlCaller(settingsUrl, accessKey, siteTimeout);
-        GetCourseList courseListGetter = new GetCourseList(urlCaller, eventId);
+        UrlCaller courseListCaller = new UrlCaller(settingsUrl, accessKey, siteTimeout);
+        GetCourseList courseListGetter = new GetCourseList(courseListCaller, eventId);
         courseListGetter.setHandler(MainActivity.getUIHandler());
         courseListGetter.setCallback(t -> {
             UrlCallResults results = courseListGetter.getUrlCallResults();
@@ -97,7 +98,7 @@ public class SecondFragment extends Fragment {
             public void processResult(SiStickResult result) {
                 UserInfo userInfo = new UserInfo(result);
                 actualResults.add(userInfo);
-                addResultEntry(inflater, userInfo);
+                addNewResultEntry(inflater, userInfo);
             }
         });
 
@@ -122,19 +123,56 @@ public class SecondFragment extends Fragment {
 
     }
 
+    private void addNewResultEntry(LayoutInflater inflater, UserInfo userInfo) {
+        addResultEntry(inflater, userInfo);
+
+        // Now check to see what actions to kick off - registration or download
+        if (userInfo.getReadResults().getStartTime() != 0) {
+            // Download
+            UrlCaller uploadCaller = new UrlCaller(settingsUrl, accessKey, siteTimeout);
+            UploadResults resultUploader = new UploadResults(uploadCaller, eventId, userInfo);
+            resultUploader.setHandler(MainActivity.getUIHandler());
+            resultUploader.setCallback(t -> {
+                UrlCallResults results = resultUploader.getUrlCallResults();
+                if (results.isSuccess()) {
+                    UploadResults.ResultDetails resultDetails = resultUploader.getUploadDetails();
+                    if (resultDetails.nreClass.equals("")) {
+                        userInfo.getStatusWidget().stickMemberName.setText(userInfo.getMemberName());
+                    }
+                    else {
+                        userInfo.getStatusWidget().stickMemberName.setText(userInfo.getMemberName() + " (" + resultDetails.nreClass + ")");
+                    }
+                    userInfo.getStatusWidget().courseField.setText(resultDetails.courseRun);
+                    userInfo.getStatusWidget().statusField.setText(resultDetails.courseStatus);
+                    userInfo.getStatusWidget().timeTakenField.setText(resultDetails.timeTaken);
+                } else if (results.isConnectivityFailure()) {
+                    userInfo.getStatusWidget().stickMemberName.setText("Connectivity failure - retry later");
+                } else { // other error
+                    userInfo.getStatusWidget().stickMemberName.setText("Unknown failure - retry later");
+                }
+            });
+
+            MainActivity.submitBackgroundTask(resultUploader);
+        }
+        else {
+            userInfo.getStatusWidget().registerLayout.setVisibility(View.VISIBLE);
+            userInfo.getStatusWidget().stickNavigationLayout.setVisibility(View.GONE);
+        }
+    }
     private void addResultEntry(LayoutInflater inflater, UserInfo userInfo) {
         StickEntryBinding stickEntryBinding = StickEntryBinding.inflate(inflater, binding.stickInfoLayout, true);
         stickEntryBinding.stickNumber.setText(String.valueOf(userInfo.getReadResults().getStickNumber()));
 
-        String settingsUrlTextField = sharedPreferences.getString(getResources().getString(R.string.settings_url), getResources().getString(R.string.default_invalid_url));
-        stickEntryBinding.stickMemberName.setText(settingsUrlTextField);
+        if (userInfo.getMemberName() != null) {
+            stickEntryBinding.stickMemberName.setText(userInfo.getMemberName());
+        }
+        else {
+            stickEntryBinding.stickMemberName.setText("Unknown");
+        }
 
-        String settingsTimeout = sharedPreferences.getString(getResources().getString(R.string.settings_site_timeout), "10");
-        stickEntryBinding.timeTakenField.setText(settingsTimeout + ":" + userInfo.getReadResults().getStartTime());
+        stickEntryBinding.timeTakenField.setText("No time");
 
-        String settingsKey = sharedPreferences.getString(getResources().getString(R.string.settings_key), getResources().getString(R.string.default_invalid_key));
-        stickEntryBinding.courseField.setText(settingsKey);
-        stickEntryBinding.registerLayout.setVisibility(View.GONE);
+        stickEntryBinding.courseField.setText("No course");
 
         stickEntryBinding.registerButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -181,6 +219,11 @@ public class SecondFragment extends Fragment {
                 stickEntryBinding.registerLayout.setVisibility(View.GONE);
             }
         });
+
+        userInfo.setStatusWidget(stickEntryBinding);
+
+        // By default, the registration view is hidden - this may be overriden later
+        stickEntryBinding.registerLayout.setVisibility(View.GONE);
     }
 
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {

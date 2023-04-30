@@ -5,16 +5,7 @@ import android.os.Parcelable;
 
 import java.io.Serializable;
 
-public class Punch implements Parcelable, Serializable {
-    public static final Creator CREATOR = new Creator() {
-        public Punch createFromParcel(Parcel in) {
-            return new Punch(in);
-        }
-
-        public Punch[] newArray(int size) {
-            return new Punch[size];
-        }
-    };
+public class Punch {
 
     public int code; //The SI station code
     public long time; //The time of the punch
@@ -25,22 +16,6 @@ public class Punch implements Parcelable, Serializable {
     public Punch(int code, long time) {
         this.code = code;
         this.time = time;
-    }
-
-    public Punch(Parcel in) {
-        this.code = in.readInt();
-        this.time = in.readLong();
-    }
-
-    @Override
-    public int describeContents() {
-        return 0;
-    }
-
-    @Override
-    public void writeToParcel(Parcel dest, int flags) {
-        dest.writeInt(this.code);
-        dest.writeLong(this.time);
     }
 
     public int getCode() {
