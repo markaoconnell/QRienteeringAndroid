@@ -23,13 +23,6 @@
                 android:text="00000000" />
 
             <TextView
-                android:id="@+id/name_text_field"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/name" />
-
-            <TextView
                 android:id="@+id/stick_member_name"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -62,7 +55,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="OK" />
+                android:text="--" />
         </LinearLayout>
 
         <LinearLayout

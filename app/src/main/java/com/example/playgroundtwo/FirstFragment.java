@@ -66,9 +66,8 @@ public class FirstFragment extends Fragment {
             eventGetter.setCallback(t -> {
                 UrlCallResults results = eventGetter.getUrlCallResults();
                 if (results.isSuccess()) {
-                    List<Pair<String, String>> eventList = eventGetter.getEventListResult();
                     xlatedKey = eventGetter.getXlatedKey();
-                    chooseEvent(eventList);
+                    chooseEvent(eventGetter);
                 } else if (results.isConnectivityFailure()) {
                     binding.buttonFirst.setEnabled(false);
                     binding.eventChooserStatusField.setText(String.format("Cannot contact site (%s), please check connectivity - message %s",
@@ -107,14 +106,16 @@ public class FirstFragment extends Fragment {
         binding = null;
     }
 
-    private void chooseEvent(List<Pair<String, String>> eventList) {
+    private void chooseEvent(GetEventList eventGetter) {
+        List<Pair<String, String>> eventList = eventGetter.getEventListResult();
+
         if (eventList.size() == 0) {
             binding.buttonFirst.setEnabled(false);
             binding.eventChooserStatusField.setText("No currently open events");
             binding.eventChooserStatusField.setTextColor(getResources().getColor(com.google.android.material.R.color.design_default_color_error));
         }
         else if (eventList.size() == 1) {
-            useSelectedCourse(eventList.get(0));
+            useSelectedCourse(eventList.get(0), eventGetter.eventSupportsPreregistration(eventList.get(0).first));
         }
         else {
             RadioGroup rg = new RadioGroup(getActivity());
@@ -135,17 +136,17 @@ public class FirstFragment extends Fragment {
                 @Override
                 public void onClick(View view) {
                     int selection = rg.getCheckedRadioButtonId();
-                    Pair<String, String> chosenCourse = eventList.get(selection);
-                    useSelectedCourse(chosenCourse);
+                    Pair<String, String> chosenEvent = eventList.get(selection);
+                    useSelectedCourse(chosenEvent, eventGetter.eventSupportsPreregistration(chosenEvent.first));
                 }
             });
             binding.buttonFirst.setEnabled(true);
         }
     }
 
-    private void useSelectedCourse(Pair<String, String> chosenEvent) {
+    private void useSelectedCourse(Pair<String, String> chosenEvent, boolean eventAllowsPreregistration) {
         ((MainActivity) getActivity()).setEventName(chosenEvent.second);
-        ((MainActivity) getActivity()).setEventAndKey(chosenEvent.first, xlatedKey);
+        ((MainActivity) getActivity()).setEventAndKey(chosenEvent.first, xlatedKey, eventAllowsPreregistration);
         NavHostFragment.findNavController(FirstFragment.this)
                 .navigate(R.id.action_FirstFragment_to_SecondFragment);
     }

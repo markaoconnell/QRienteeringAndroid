@@ -11,11 +11,10 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
-import androidx.navigation.fragment.NavHostFragment;
 import androidx.preference.PreferenceManager;
 
 import com.example.playgroundtwo.QRienteeringCalls.GetCourseList;
-import com.example.playgroundtwo.QRienteeringCalls.GetEventList;
+import com.example.playgroundtwo.QRienteeringCalls.LookupSiUnit;
 import com.example.playgroundtwo.QRienteeringCalls.UploadResults;
 import com.example.playgroundtwo.databinding.FragmentSecondBinding;
 import com.example.playgroundtwo.databinding.StickEntryBinding;
@@ -25,7 +24,7 @@ import com.example.playgroundtwo.sireader.SiStickResult;
 import com.example.playgroundtwo.url.UrlCallResults;
 import com.example.playgroundtwo.url.UrlCaller;
 import com.example.playgroundtwo.usbhandler.UsbProber;
-import com.example.playgroundtwo.usbhandler.UsbProberCallback;
+import com.example.playgroundtwo.userinfo.DownloadResults;
 import com.example.playgroundtwo.userinfo.UserInfo;
 
 import java.util.ArrayList;
@@ -127,7 +126,7 @@ public class SecondFragment extends Fragment {
         addResultEntry(inflater, userInfo);
 
         // Now check to see what actions to kick off - registration or download
-        if (userInfo.getReadResults().getStartTime() != 0) {
+        if (userInfo.getStickInfo().getStartTime() != 0) {
             // Download
             UrlCaller uploadCaller = new UrlCaller(settingsUrl, accessKey, siteTimeout);
             UploadResults resultUploader = new UploadResults(uploadCaller, eventId, userInfo);
@@ -135,16 +134,24 @@ public class SecondFragment extends Fragment {
             resultUploader.setCallback(t -> {
                 UrlCallResults results = resultUploader.getUrlCallResults();
                 if (results.isSuccess()) {
-                    UploadResults.ResultDetails resultDetails = resultUploader.getUploadDetails();
-                    if (resultDetails.nreClass.equals("")) {
-                        userInfo.getStatusWidget().stickMemberName.setText(userInfo.getMemberName());
+                    DownloadResults resultDetails = resultUploader.getResultDetails();
+                    userInfo.setDownloadResults(resultDetails);
+                    if (userInfo.getMemberName() != null) {
+                        if (!resultDetails.hasNreClass()) {
+                            userInfo.getStatusWidget().stickMemberName.setText(userInfo.getMemberName());
+                        } else {
+                            userInfo.getStatusWidget().stickMemberName.setText(userInfo.getMemberName() + " (" + resultDetails.nreClass + ")");
+                        }
+                        userInfo.getStatusWidget().timeTakenField.setText(resultDetails.timeTaken);
+                        userInfo.getStatusWidget().courseField.setText(resultDetails.courseRun);
+                    }
+
+                    if (resultDetails.hasErrors()) {
+                        userInfo.getStatusWidget().statusField.setText(resultDetails.errors);
                     }
                     else {
-                        userInfo.getStatusWidget().stickMemberName.setText(userInfo.getMemberName() + " (" + resultDetails.nreClass + ")");
+                        userInfo.getStatusWidget().statusField.setText(resultDetails.courseStatus);
                     }
-                    userInfo.getStatusWidget().courseField.setText(resultDetails.courseRun);
-                    userInfo.getStatusWidget().statusField.setText(resultDetails.courseStatus);
-                    userInfo.getStatusWidget().timeTakenField.setText(resultDetails.timeTaken);
                 } else if (results.isConnectivityFailure()) {
                     userInfo.getStatusWidget().stickMemberName.setText("Connectivity failure - retry later");
                 } else { // other error
@@ -155,30 +162,66 @@ public class SecondFragment extends Fragment {
             MainActivity.submitBackgroundTask(resultUploader);
         }
         else {
-            userInfo.getStatusWidget().registerLayout.setVisibility(View.VISIBLE);
-            userInfo.getStatusWidget().stickNavigationLayout.setVisibility(View.GONE);
+            UrlCaller lookupCaller = new UrlCaller(settingsUrl, accessKey, siteTimeout);
+            LookupSiUnit lookupHandler = new LookupSiUnit(lookupCaller, eventId, ((MainActivity) getActivity()).checkPreregistrationList(), userInfo);
+            lookupHandler.setHandler(MainActivity.getUIHandler());
+            lookupHandler.setCallback(t -> {
+                UrlCallResults results = lookupHandler.getUrlCallResults();
+                if (results.isSuccess()) {
+                    // The call may have returned successfully, but it may not have found a member for this stick
+                    if (userInfo.getMemberName() != null) {
+                        userInfo.getStatusWidget().stickMemberName.setText(userInfo.getMemberName());
+                        userInfo.getStatusWidget().registerNameField.setText(userInfo.getMemberName());
+                        if (!userInfo.getCellPhone().equals("")) {
+                            userInfo.getStatusWidget().emergencyContact.setText(userInfo.getCellPhone());
+                        }
+
+                        userInfo.getStatusWidget().registerLayout.setVisibility(View.VISIBLE);
+                        userInfo.getStatusWidget().stickNavigationLayout.setVisibility(View.GONE);
+                    }
+                    else {
+                        userInfo.getStatusWidget().stickMemberName.setText("No member found");
+                    }
+                } else if (results.isConnectivityFailure()) {
+                    userInfo.getStatusWidget().stickMemberName.setText("Connectivity failure - retry later");
+                } else { // other error
+                    userInfo.getStatusWidget().stickMemberName.setText("Unknown failure - retry later");
+                }
+            });
+
+            MainActivity.submitBackgroundTask(lookupHandler);
         }
     }
     private void addResultEntry(LayoutInflater inflater, UserInfo userInfo) {
         StickEntryBinding stickEntryBinding = StickEntryBinding.inflate(inflater, binding.stickInfoLayout, true);
-        stickEntryBinding.stickNumber.setText(String.valueOf(userInfo.getReadResults().getStickNumber()));
+        stickEntryBinding.stickNumber.setText(String.valueOf(userInfo.getStickInfo().getStickNumber()));
 
         if (userInfo.getMemberName() != null) {
             stickEntryBinding.stickMemberName.setText(userInfo.getMemberName());
         }
-        else {
-            stickEntryBinding.stickMemberName.setText("Unknown");
+
+        if (courseList.size() > 0) {
+            ArrayAdapter<String> courseChoices = new ArrayAdapter<>(SecondFragment.this.getContext(), androidx.appcompat.R.layout.support_simple_spinner_dropdown_item, courseNames);
+            stickEntryBinding.courseChoiceSpinner.setAdapter(courseChoices);
         }
-
-        stickEntryBinding.timeTakenField.setText("No time");
-
-        stickEntryBinding.courseField.setText("No course");
 
         stickEntryBinding.registerButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                ArrayAdapter<String> courseChoices = new ArrayAdapter<>(SecondFragment.this.getContext(), androidx.appcompat.R.layout.support_simple_spinner_dropdown_item, courseNames);
-                stickEntryBinding.courseChoiceSpinner.setAdapter(courseChoices);
+                if ((stickEntryBinding.courseChoiceSpinner.getCount() == 0) && (courseList.size() > 0)) {
+                    ArrayAdapter<String> courseChoices = new ArrayAdapter<>(SecondFragment.this.getContext(), androidx.appcompat.R.layout.support_simple_spinner_dropdown_item, courseNames);
+                    stickEntryBinding.courseChoiceSpinner.setAdapter(courseChoices);
+                }
+                if (userInfo.getPreregisteredCourse() != null) {
+                    int preregisteredCourseIndex = -1;
+                    for (Pair<String, String> thisCourse : courseList) {
+                        preregisteredCourseIndex++;
+                        if (thisCourse.first.equals(userInfo.getPreregisteredCourse())) {
+                            stickEntryBinding.courseChoiceSpinner.setSelection(preregisteredCourseIndex);
+                            break;
+                        }
+                    }
+                }
 
                 stickEntryBinding.registerLayout.setVisibility(View.VISIBLE);
                 stickEntryBinding.stickNavigationLayout.setVisibility(View.GONE);

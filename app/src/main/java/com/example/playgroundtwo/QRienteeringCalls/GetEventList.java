@@ -8,8 +8,10 @@ import com.example.playgroundtwo.url.UrlCallResults;
 import com.example.playgroundtwo.url.UrlCaller;
 import com.example.playgroundtwo.url.UrlCallerException;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -19,6 +21,7 @@ public class GetEventList extends BaseBackgroundTask {
     private String xlatedKey;
     private List<Pair<String, String>> eventList;
     private UrlCallResults callResults;
+    private Set<String> eventsWithPreregistration = new HashSet<>();
 
     public GetEventList(UrlCaller caller) {
         this.urlCaller = caller;
@@ -45,6 +48,9 @@ public class GetEventList extends BaseBackgroundTask {
                 String[] pieces = matcher.group().split(",");
                 byte[] eventDescriptionBytes = Base64.decode(pieces[3], Base64.DEFAULT);
                 eventList.add(new Pair<>(pieces[2], new String(eventDescriptionBytes)));
+                if ((pieces.length >= 5) && pieces[4].equals("Preregistration")) {
+                    eventsWithPreregistration.add(pieces[2]);
+                }
             }
 
             Pattern pattern2 = Pattern.compile("####,XLATED_KEY,.*");
@@ -63,6 +69,10 @@ public class GetEventList extends BaseBackgroundTask {
 
     public List<Pair<String, String>> getEventListResult() {
         return(eventList);
+    }
+
+    public boolean eventSupportsPreregistration(String eventId) {
+        return (eventsWithPreregistration.contains(eventId));
     }
 
     public String getXlatedKey() {

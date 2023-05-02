@@ -51,6 +51,8 @@ public class MainActivity extends AppCompatActivity {
     private String eventId;
     private String xlatedKey;
 
+    private boolean eventAllowsPreregistration = false;
+
     public static String myLogId = "MOC_QRienteering_Android";
 
     @Override
@@ -136,13 +138,17 @@ public class MainActivity extends AppCompatActivity {
         binding.textEventNameArea.setText(eventName);
     }
 
-    public void setEventAndKey(String event, String key) {
+    public void setEventAndKey(String event, String key, boolean eventAllowsPreregistration) {
         eventId = event;
         xlatedKey = key;
+        this.eventAllowsPreregistration = eventAllowsPreregistration;
     }
 
     public String getEventId() {
         return (eventId);
+    }
+    public boolean checkPreregistrationList() {
+        return (eventAllowsPreregistration);
     }
 
     public String getKeyForEvent() {

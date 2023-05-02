@@ -55,10 +55,23 @@ public class SiReaderThread extends Thread {
                 int numPunches = r.nextInt(10) + 1;
                 List<Pair<Integer, Integer>> fakePunches = new ArrayList<Pair<Integer, Integer>>();
 
-                for (int i = 0; i < numPunches; i++) {
-                    int controlNum = r.nextInt(25) + 100;
-                    int timestamp = startTime + ((totalTime / (numPunches + 2)) * (i + 1));
-                    fakePunches.add(new Pair<Integer, Integer>(controlNum, timestamp));
+                if (r.nextInt(2) == 0) {
+                    for (int i = 0; i < numPunches; i++) {
+                        int controlNum = r.nextInt(25) + 100;
+                        int timestamp = startTime + ((totalTime / (numPunches + 2)) * (i + 1));
+                        fakePunches.add(new Pair<Integer, Integer>(controlNum, timestamp));
+                    }
+                }
+                else {
+                    // Do a registration with a cleared stick
+                    // Suppose I didn't really need to figure out the start time, the finish time,
+                    // and how many punches there would be if I'm not going to use it, but, then again,
+                    // this is a bit of throwaway test code and efficiency doesn't really matter here
+                    startTime = 0;
+                    finishTime = 0;
+                    if ((numPunches % 2) == 0) {
+                        stick = 2108369;
+                    }
                 }
                 SiStickResult result = new SiStickResult(stick, startTime, finishTime, fakePunches);
                 processReadStick(result);
