@@ -15,6 +15,7 @@ import androidx.preference.PreferenceManager;
 
 import com.example.playgroundtwo.QRienteeringCalls.GetCourseList;
 import com.example.playgroundtwo.QRienteeringCalls.LookupSiUnit;
+import com.example.playgroundtwo.QRienteeringCalls.RegisterForCourse;
 import com.example.playgroundtwo.QRienteeringCalls.UploadResults;
 import com.example.playgroundtwo.databinding.FragmentSecondBinding;
 import com.example.playgroundtwo.databinding.StickEntryBinding;
@@ -25,6 +26,7 @@ import com.example.playgroundtwo.url.UrlCallResults;
 import com.example.playgroundtwo.url.UrlCaller;
 import com.example.playgroundtwo.usbhandler.UsbProber;
 import com.example.playgroundtwo.userinfo.DownloadResults;
+import com.example.playgroundtwo.userinfo.RegistrationResults;
 import com.example.playgroundtwo.userinfo.UserInfo;
 
 import java.util.ArrayList;
@@ -90,7 +92,12 @@ public class SecondFragment extends Fragment {
             addResultEntry(inflater, thisUser);
         }
 
-        siReaderThread = new SiReaderThread();
+        usbProber = new UsbProber((MainActivity) this.getActivity());
+        usbProber.setHandler(MainActivity.getUIHandler());
+        TextView infoTextWidget = binding.textviewFirst;
+        usbProber.setCallback(infoString -> infoTextWidget.setText(infoTextWidget.getText() + "\n" + infoString));
+
+        siReaderThread = new SiReaderThread(usbProber);
         siReaderThread.setHandler(MainActivity.getUIHandler());
         siReaderThread.setSiResultHandler(new SiResultHandler() {
             @Override
@@ -103,18 +110,15 @@ public class SecondFragment extends Fragment {
 
         siReaderThread.start();
 
-        usbProber = new UsbProber((MainActivity) this.getActivity());
-        usbProber.setHandler(MainActivity.getUIHandler());
-        TextView infoTextWidget = binding.textviewFirst;
-        usbProber.setCallback(infoString -> infoTextWidget.setText(infoTextWidget.getText() + "\n" + infoString));
-        usbProber.start();
 
+        /*
         for (int thisResult = 0; thisResult < numberResults; thisResult++) {
             SiStickResult fakeResult = new SiStickResult(thisResult, 0, 0, null);
             UserInfo userInfo = new UserInfo(fakeResult);
 
             addResultEntry(inflater, userInfo);
         }
+         */
 
         //numberResults++;
 
@@ -249,18 +253,82 @@ public class SecondFragment extends Fragment {
         stickEntryBinding.registrationOkButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                stickEntryBinding.stickMemberName.setText(stickEntryBinding.registerNameField.getText());
-                stickEntryBinding.courseField.setText(courseNames[stickEntryBinding.courseChoiceSpinner.getSelectedItemPosition()]);
-                stickEntryBinding.statusField.setText("Registered");
-                stickEntryBinding.stickNumber.setText(stickEntryBinding.emergencyContact.getText());
+                String courseToRun = courseList.get(stickEntryBinding.courseChoiceSpinner.getSelectedItemPosition()).first;
+                stickEntryBinding.stickMemberName.setText(stickEntryBinding.registerNameField.getText().toString());
+                userInfo.setMemberName(stickEntryBinding.registerNameField.getText().toString());
+                userInfo.setCellPhone(stickEntryBinding.emergencyContact.getText().toString());
 
-                if (stickEntryBinding.emergencyContact.getText().length() < 7) {
-                    stickEntryBinding.statusField.setText("Invalid contact number");
-                }
+                UrlCaller registerCaller = new UrlCaller(settingsUrl, accessKey, siteTimeout);
+                RegisterForCourse registrationHandler = new RegisterForCourse(registerCaller, eventId, courseToRun, userInfo);
+                registrationHandler.setHandler(MainActivity.getUIHandler());
+
+                registrationHandler.setCallback(t -> {
+                    UrlCallResults results = registrationHandler.getUrlCallResults();
+                    if (results.isSuccess()) {
+                        RegistrationResults regResults = registrationHandler.getRegistrationResults();
+                        if (regResults.success) {
+                            if (regResults.hasNreClass()) {
+                                stickEntryBinding.statusField.setText("Registered successfully - " + regResults.getNreClass());
+                            }
+                            else {
+                                stickEntryBinding.statusField.setText("Registered successfully");
+                            }
+                            userInfo.setDownloadResults(null);  // Clear this, as it is now obsolete with the new registration
+                            stickEntryBinding.courseField.setText(courseToRun.replaceFirst("^[0-9]+-", ""));
+                        }
+                        else {
+                            stickEntryBinding.statusField.setText(regResults.getErrorDescription());
+                        }
+                    } else if (results.isConnectivityFailure()) {
+                        userInfo.getStatusWidget().stickMemberName.setText("Connectivity failure - retry later");
+                    } else { // other error
+                        userInfo.getStatusWidget().stickMemberName.setText("Unknown failure - retry later");
+                    }
+                });
+
+                MainActivity.submitBackgroundTask(registrationHandler);
 
                 stickEntryBinding.stickNavigationLayout.setVisibility(View.VISIBLE);
                 stickEntryBinding.registerLayout.setVisibility(View.GONE);
             }
+        });
+
+        stickEntryBinding.downloadButton.setEnabled(!userInfo.getStickInfo().isClearedStick());
+        stickEntryBinding.downloadButton.setOnClickListener(v -> {
+            UrlCaller uploadCaller = new UrlCaller(settingsUrl, accessKey, siteTimeout);
+            UploadResults resultUploader = new UploadResults(uploadCaller, eventId, userInfo);
+            resultUploader.setHandler(MainActivity.getUIHandler());
+            resultUploader.setCallback(t -> {
+                UrlCallResults results = resultUploader.getUrlCallResults();
+                if (results.isSuccess()) {
+                    DownloadResults resultDetails = resultUploader.getResultDetails();
+                    userInfo.setRegistrationResults(null);  // this is obsolete now that we have a successful download
+                    userInfo.setDownloadResults(resultDetails);
+                    if (userInfo.getMemberName() != null) {
+                        if (!resultDetails.hasNreClass()) {
+                            userInfo.getStatusWidget().stickMemberName.setText(userInfo.getMemberName());
+                        } else {
+                            userInfo.getStatusWidget().stickMemberName.setText(userInfo.getMemberName() + " (" + resultDetails.nreClass + ")");
+                        }
+                        userInfo.getStatusWidget().timeTakenField.setText(resultDetails.timeTaken);
+                        userInfo.getStatusWidget().courseField.setText(resultDetails.courseRun);
+                    }
+
+                    if (resultDetails.hasErrors()) {
+                        userInfo.getStatusWidget().statusField.setText(resultDetails.errors);
+                    }
+                    else {
+                        userInfo.getStatusWidget().statusField.setText(resultDetails.courseStatus);
+                    }
+                } else if (results.isConnectivityFailure()) {
+                    userInfo.getStatusWidget().stickMemberName.setText("Connectivity failure - retry later");
+                } else { // other error
+                    userInfo.getStatusWidget().stickMemberName.setText("Unknown failure - retry later");
+                }
+            });
+
+            MainActivity.submitBackgroundTask(resultUploader);
+
         });
 
         userInfo.setStatusWidget(stickEntryBinding);

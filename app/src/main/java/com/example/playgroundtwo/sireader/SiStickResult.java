@@ -48,4 +48,8 @@ public class SiStickResult {
         stickSummaryString = String.format("%d;%d,start:%d,finish:%d", stickNumber, startTime, startTime, finishTime) + ((punchesString == "") ? "" : ("," + punchesString));
         return (stickSummaryString);
     }
+
+    public boolean isClearedStick() {
+        return ((startTime == 0) && (finishTime == 0) && ((punches == null) || (punches.size() == 0)));
+    }
 }

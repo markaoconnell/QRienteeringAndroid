@@ -5,11 +5,14 @@ import com.example.playgroundtwo.sireader.SiStickResult;
 
 public class UserInfo {
     private SiStickResult stickInfo;
+
     private DownloadResults userResults;
+
+    private RegistrationResults registrationResults;
     private String memberName;
     private String preregisteredCourse;
     private String club = "No club";
-    private String memberId;
+    private String memberId = "NotAMember";
     private String emailAddress = "";
     private String cellPhone = "";
     private String nreClassificationInfo;
@@ -19,8 +22,21 @@ public class UserInfo {
         stickInfo = stickResults;
     }
 
-    public void setDownloadResults(DownloadResults webResults) {
-        userResults = webResults;
+
+    public DownloadResults getDownloadResults() {
+        return userResults;
+    }
+
+    public void setDownloadResults(DownloadResults userResults) {
+        this.userResults = userResults;
+    }
+
+    public RegistrationResults getRegistrationResults() {
+        return registrationResults;
+    }
+
+    public void setRegistrationResults(RegistrationResults registrationResults) {
+        this.registrationResults = registrationResults;
     }
 
     public String getMemberName() {

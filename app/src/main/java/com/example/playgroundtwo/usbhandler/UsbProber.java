@@ -36,6 +36,7 @@ public class UsbProber extends Thread {
 
     private Handler handler;
     private UsbProberCallback callback;
+    private FoundCardCallback cardFoundCallback;
 
     private MainActivity mainActivity;
 
@@ -52,6 +53,9 @@ public class UsbProber extends Thread {
     public void setCallback(UsbProberCallback c) {
         this.callback = c;
     }
+    public void setCardFoundCallback(FoundCardCallback c) {
+        this.cardFoundCallback = c;
+    }
 
     protected void notifyListeners(String notificationString) {
         if (callback != null) {
@@ -65,6 +69,12 @@ public class UsbProber extends Thread {
             } else {
                 callback.OnInfoFound(notificationString);
             }
+        }
+    }
+
+    protected void notifyCardFound(CardReader.CardEntry foundCard) {
+        if (cardFoundCallback != null) {
+            cardFoundCallback.foundCard(foundCard);
         }
     }
 
@@ -171,8 +181,9 @@ public class UsbProber extends Thread {
                             updateStatus("Received cardId of 0 (card removed while reading?), sending Ack to station");
                             reader.sendAck();
                         } else {
-                            String punchString = siCard.punches.stream().map(punch -> (punch.getCode() + ":" + punch.getTime())).collect(Collectors.joining(","));
-                            updateStatus(String.format("Read card %d, start %d, finish %d, punches: %s", siCard.cardId, siCard.startTime, siCard.finishTime, punchString));
+                            notifyCardFound(siCard);
+                            // String punchString = siCard.punches.stream().map(punch -> (punch.getCode() + ":" + punch.getTime())).collect(Collectors.joining(","));
+                            // updateStatus(String.format("Read card %d, start %d, finish %d, punches: %s", siCard.cardId, siCard.startTime, siCard.finishTime, punchString));
                         }
                     }
                 }

@@ -3,18 +3,23 @@ package com.example.playgroundtwo.sireader;
 import android.os.Handler;
 import android.util.Pair;
 
+import com.example.playgroundtwo.usbhandler.UsbProber;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.stream.Collectors;
 
 public class SiReaderThread extends Thread {
 
     private Handler handler;
     private SiResultHandler resultHandler;
     private volatile boolean stopRunning;
+    private UsbProber siReader;
 
-    public SiReaderThread() {
+    public SiReaderThread(UsbProber readerObj) {
         stopRunning = false;
+        siReader = readerObj;
     }
 
     public void setHandler(Handler completionHandler) {
@@ -27,6 +32,20 @@ public class SiReaderThread extends Thread {
 
     @Override
     public void run() {
+        siReader.setCardFoundCallback(c -> {
+            List<Pair<Integer, Integer>> myPunches;
+            myPunches = c.punches.stream().map(p -> new Pair<Integer, Integer> (p.getCode(), (int) p.getTime())).collect(Collectors.toList());
+            SiStickResult result = new SiStickResult((int) c.cardId, (int) c.startTime, (int) c.finishTime, myPunches);
+            processReadStick(result);
+        });
+
+        siReader.run();
+        if (!stopRunning) {
+            simulationRun();
+        }
+    }
+
+    private void simulationRun() {
         Random r = new Random();
         int nextResultReport = r.nextInt(10) + 5;
         while (true) {
@@ -96,5 +115,6 @@ public class SiReaderThread extends Thread {
 
     public void stopThread() {
         stopRunning = true;
+        siReader.stopRunning();
     }
 }
