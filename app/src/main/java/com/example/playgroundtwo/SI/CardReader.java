@@ -329,7 +329,7 @@ public class CardReader  {
                 entry.punches.add(punch);
             }
 
-            //card5TimeAdjust(entry);
+            card5TimeAdjust(entry);
 
             ret = true;
         }
@@ -442,10 +442,10 @@ public class CardReader  {
         long lastTime = zeroTimeBase;
         for (Punch punch : entry.punches) {
             long tmpTime = punch.time * 1000 + currentBase;
-            //if (tmpTime < lastTime) {
-            //    currentBase += HALF_DAY;
-            //}
-            //tmpTime = punch.time * 1000 + currentBase;
+            if (tmpTime < lastTime) {
+                currentBase += HALF_DAY;
+            }
+            tmpTime = punch.time * 1000 + currentBase;
             punch.time = tmpTime - zeroTimeBase;
             lastTime = tmpTime;
         }

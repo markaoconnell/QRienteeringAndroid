@@ -32,10 +32,12 @@ public class SiReaderThread extends Thread {
 
     @Override
     public void run() {
+        // The CardReader returns the timestamps in milliseconds, whereas QRienteering expects
+        // times in seconds - convert here
         siReader.setCardFoundCallback(c -> {
             List<Pair<Integer, Integer>> myPunches;
-            myPunches = c.punches.stream().map(p -> new Pair<Integer, Integer> (p.getCode(), (int) p.getTime())).collect(Collectors.toList());
-            SiStickResult result = new SiStickResult((int) c.cardId, (int) c.startTime, (int) c.finishTime, myPunches);
+            myPunches = c.punches.stream().map(p -> new Pair<Integer, Integer> (p.getCode(), (int) p.getTime() / 1000)).collect(Collectors.toList());
+            SiStickResult result = new SiStickResult((int) c.cardId, (int) c.startTime / 1000, (int) c.finishTime / 1000, myPunches);
             processReadStick(result);
         });
 

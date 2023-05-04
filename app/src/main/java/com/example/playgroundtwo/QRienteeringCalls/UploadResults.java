@@ -39,7 +39,6 @@ public class UploadResults extends BaseBackgroundTask {
 
 
     public void uploadResults() {
-
         String stickSummaryString = stickUser.getStickInfo().getStickSummaryString();
         String encodedStickSummary = Base64.encodeToString(stickSummaryString.getBytes(), Base64.DEFAULT);
         String safeStickSummary = encodedStickSummary.replaceAll("=", "%3D").replaceAll("\n", "");
@@ -65,21 +64,7 @@ public class UploadResults extends BaseBackgroundTask {
                     tmpUploadResults.append(String.format("%s finished course %s in %s - ", competitorName, course, formatTimeTaken(timeTaken)));
                     foundResults.timeTaken = formatTimeTaken(timeTaken);
                     foundResults.courseRun = course;
-
-
-                    // If this is the first time we've looked up this person, save their name
-                    // Here we are saving the readable course name, and we should really be saving the unique course name
-                    // TODO clean this up
-                    if (stickUser.getMemberName() == null) {
-                        stickUser.setMemberName(competitorName);
-                    }
-                    else if (!competitorName.equals(stickUser.getMemberName())) {
-                        // For some reason, the name returned as registered to this stick doesn't match
-                        // what was expected (probably from a lookup of the member associated with this stick)
-                        // Assume that the name just discovered is more likely correct (perhaps the member
-                        // loaned a stick to someone else?)
-                        stickUser.setMemberName(competitorName);
-                    }
+                    foundResults.registrationName = competitorName;
                 }
 
                 Pattern classPattern = Pattern.compile("####,CLASS,.*");

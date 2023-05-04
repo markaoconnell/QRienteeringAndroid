@@ -1,6 +1,7 @@
 package com.example.playgroundtwo.userinfo;
 
 public class DownloadResults {
+    public String registrationName;
     public String timeTaken = "No time";
     public String courseRun = "No course";
     public String nreClass;

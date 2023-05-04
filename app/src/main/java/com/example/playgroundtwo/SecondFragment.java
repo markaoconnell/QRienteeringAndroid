@@ -136,11 +136,13 @@ public class SecondFragment extends Fragment {
             UploadResults resultUploader = new UploadResults(uploadCaller, eventId, userInfo);
             resultUploader.setHandler(MainActivity.getUIHandler());
             resultUploader.setCallback(t -> {
+                boolean performStickLookup = false;
                 UrlCallResults results = resultUploader.getUrlCallResults();
                 if (results.isSuccess()) {
                     DownloadResults resultDetails = resultUploader.getResultDetails();
                     userInfo.setDownloadResults(resultDetails);
-                    if (userInfo.getMemberName() != null) {
+                    if (resultDetails.registrationName != null) {
+                        userInfo.setMemberName(resultDetails.registrationName);
                         if (!resultDetails.hasNreClass()) {
                             userInfo.getStatusWidget().stickMemberName.setText(userInfo.getMemberName());
                         } else {
@@ -148,6 +150,9 @@ public class SecondFragment extends Fragment {
                         }
                         userInfo.getStatusWidget().timeTakenField.setText(resultDetails.timeTaken);
                         userInfo.getStatusWidget().courseField.setText(resultDetails.courseRun);
+                    }
+                    else {
+                        performStickLookup = true;
                     }
 
                     if (resultDetails.hasErrors()) {
@@ -160,6 +165,37 @@ public class SecondFragment extends Fragment {
                     userInfo.getStatusWidget().stickMemberName.setText("Connectivity failure - retry later");
                 } else { // other error
                     userInfo.getStatusWidget().stickMemberName.setText("Unknown failure - retry later");
+                }
+
+                if (performStickLookup) {
+                    UrlCaller lookupCaller = new UrlCaller(settingsUrl, accessKey, siteTimeout);
+                    LookupSiUnit lookupHandler = new LookupSiUnit(lookupCaller, eventId, ((MainActivity) getActivity()).checkPreregistrationList(), userInfo);
+                    lookupHandler.setHandler(MainActivity.getUIHandler());
+                    lookupHandler.setCallback(l -> {
+                        UrlCallResults lookupResults = lookupHandler.getUrlCallResults();
+                        if (lookupResults.isSuccess()) {
+                            // The call may have returned successfully, but it may not have found a member for this stick
+                            if (userInfo.getMemberName() != null) {
+                                userInfo.getStatusWidget().stickMemberName.setText(userInfo.getMemberName());
+                                userInfo.getStatusWidget().registerNameField.setText(userInfo.getMemberName());
+                                if (!userInfo.getCellPhone().equals("")) {
+                                    userInfo.getStatusWidget().emergencyContact.setText(userInfo.getCellPhone());
+                                }
+
+                                userInfo.getStatusWidget().registerLayout.setVisibility(View.VISIBLE);
+                                userInfo.getStatusWidget().stickNavigationLayout.setVisibility(View.GONE);
+                            }
+                            else {
+                                userInfo.getStatusWidget().stickMemberName.setText("No member found");
+                            }
+                        } else if (lookupResults.isConnectivityFailure()) {
+                            userInfo.getStatusWidget().stickMemberName.setText("Connectivity failure - retry later");
+                        } else { // other error
+                            userInfo.getStatusWidget().stickMemberName.setText("Unknown failure - retry later");
+                        }
+                    });
+
+                    MainActivity.submitBackgroundTask(lookupHandler);
                 }
             });
 
