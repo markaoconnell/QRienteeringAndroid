@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class CardReader  {
     public static class CardEntry {
@@ -65,14 +66,14 @@ public class CardReader  {
     private UsbProber callback;
 
 
-    public CardReader(Context context, Calendar zeroTime) {
+//    public CardReader(Context context, Calendar zeroTime) {
 //        this.context = context;
 //        this.manager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
 //        this.taskState = TaskState.Probe;
 //
 //        this.zeroTimeBase = zeroTime.get(Calendar.HOUR_OF_DAY)*3600000 + zeroTime.get(Calendar.MINUTE)*60000 + zeroTime.get(Calendar.SECOND)*1000;
 //        this.zeroTimeWeekDay = zeroTime.get(Calendar.DAY_OF_WEEK) % 7;
-    }
+//    }
 
     public CardReader(SIReader siReader, UsbProber callback) {
         this.siReader = siReader;
@@ -252,28 +253,57 @@ public class CardReader  {
                         break;
                     }
 
-                    int series = tmpReply[24] & 0x0f;
+                    // Add 6 here, don't forget that the initial 6 bytes are protocol bytes
+                    int series = tmpReply[24+6] & 0x0f;
+                    recordData("FirstBlock:" + series, tmpReply);
                     int nextBlock = 1;
                     int blockCount = 1;
                     if (series == 0x0f) {
                         // siac
                         nextBlock = 4;
                         blockCount = (tmpReply[22] + 31) / 32;
-                    }
-                    reply = new byte[128*(1+blockCount)];
-                    System.arraycopy(tmpReply, 6, reply, 0, 128);
-
-                    for (int i=nextBlock; i<nextBlock+blockCount; i++) {
-                        msg[0] = (byte)i;
+                        // let's try reading differently for these cards - based on the python code
+                        // Looks like a read of block 8 will read the entire card
+                        reply = new byte[128 * 5];
+                        msg[0] = (byte)0x8;
                         proto.writeMsg((byte)0xef, msg, true);
-                        tmpReply = proto.readMsg(2000, (byte)0xef);
-                        if (tmpReply == null || tmpReply.length != 128 + 6 + 3) {
-                            // EMIT card read failed
-                            reply = null;
-                            this.emitReadCanceled();
-                            break;
+                        tmpReply = proto.readMsg(2000, (byte) 0xef);
+                        recordData("S10Block0", tmpReply);
+                        System.arraycopy(tmpReply, 6, reply, 0, 128);
+
+                        tmpReply = proto.readMsg(2000, (byte) 0xef);
+                        recordData("S10Block4", tmpReply);
+                        System.arraycopy(tmpReply, 6, reply, 128 * 1, 128);
+
+                        tmpReply = proto.readMsg(2000, (byte) 0xef);
+                        recordData("S10Block5", tmpReply);
+                        System.arraycopy(tmpReply, 6, reply, 128 * 2, 128);
+
+                        tmpReply = proto.readMsg(2000, (byte) 0xef);
+                        recordData("S10Block6", tmpReply);
+                        System.arraycopy(tmpReply, 6, reply, 128 * 3, 128);
+
+                        tmpReply = proto.readMsg(2000, (byte) 0xef);
+                        recordData("S10Block7", tmpReply);
+                        System.arraycopy(tmpReply, 6, reply, 128 * 4, 128);
+                    }
+                    else {
+                        reply = new byte[128 * (1 + blockCount)];
+                        System.arraycopy(tmpReply, 6, reply, 0, 128);
+
+                        for (int i = nextBlock; i < nextBlock + blockCount; i++) {
+                            msg[0] = (byte) i;
+                            proto.writeMsg((byte) 0xef, msg, true);
+                            tmpReply = proto.readMsg(2000, (byte) 0xef);
+                            if (tmpReply == null || tmpReply.length != 128 + 6 + 3) {
+                                // EMIT card read failed
+                                reply = null;
+                                this.emitReadCanceled();
+                                break;
+                            }
+                            recordData("SI10Block" + i, tmpReply);
+                            System.arraycopy(tmpReply, 6, reply, (i - nextBlock + 1) * 128, 128);
                         }
-                        System.arraycopy(tmpReply, 6, reply, (i-nextBlock+1)*128, 128);
                     }
                     if (reply != null && card9EntryParse(reply, entry)) {
                         proto.writeAck();
@@ -293,10 +323,36 @@ public class CardReader  {
         return entry;
     }
 
+
+    // package private testing method
+    boolean parseArtificialCardData(int format, byte [] data, CardEntry entry) {
+        boolean cardParsedCorrectly = false;
+        switch((byte) format) {
+            case (byte)0xe5: {
+                cardParsedCorrectly = card5EntryParse(data, entry);
+                break;
+            }
+            case (byte)0xe6: {
+                cardParsedCorrectly = card6EntryParse(data, entry);
+                break;
+            }
+            case (byte)0xe8: {
+               cardParsedCorrectly = card9EntryParse(data, entry);
+                break;
+            }
+            default:
+                break;
+        }
+
+        return (cardParsedCorrectly);
+    }
+
     private boolean card5EntryParse(byte[] data, CardEntry entry)
     {
         boolean ret = false;
         int offset = 0;
+
+        recordData("Card5", data);
 
         if (data.length == 136) {
             // Start at data part
@@ -339,6 +395,8 @@ public class CardReader  {
 
     private boolean card6EntryParse(byte[] data, CardEntry entry)
     {
+        recordData("Card6", data);
+
         entry.cardId = (byteToUnsignedInt(data[10]) << 24) | (byteToUnsignedInt(data[11]) << 16) | (byteToUnsignedInt(data[12]) << 8) | byteToUnsignedInt(data[13]);
 
         Punch startPunch = new Punch();
@@ -365,6 +423,9 @@ public class CardReader  {
     {
         entry.cardId = (byteToUnsignedInt(data[25]) << 16) | (byteToUnsignedInt(data[26]) << 8) | byteToUnsignedInt(data[27]);
         int series = data[24] & 0x0f;
+
+        recordData("Card9-" + series, data);
+
 
         Punch startPunch = new Punch();
         Punch finishPunch = new Punch();
@@ -511,6 +572,22 @@ public class CardReader  {
     private static int byteToUnsignedInt(byte in)
     {
         return in & 0xff;
+    }
+
+    private boolean debug = false;
+    private void recordData(String identifier, byte[] dataToRecord) {
+        if (debug) {
+           // ArrayList<String> decimalString = new ArrayList<>();
+            ArrayList<String> hexString = new ArrayList<>();
+
+            for (int i = 0; i < dataToRecord.length; i++) {
+                hexString.add(String.format("0x%x", dataToRecord[i]));
+               // decimalString.add(String.format("%d", dataToRecord[i]));
+            }
+
+            Log.d(UsbProber.myLogId, identifier + ": " + hexString.stream().collect(Collectors.joining(",")));
+            //Log.d(UsbProber.myLogId, identifier + ": " + decimalString.stream().collect(Collectors.joining(",")));
+        }
     }
 }
 
