@@ -59,7 +59,27 @@ public class SiStickResult {
         return (stickSummaryString);
     }
 
+    public String getVerboseStickSummaryString() {
+        String punchesString = punches.stream().map(punch -> (" " + punch.first + "@" + formatTimeTaken(punch.second))).collect(Collectors.joining(","));
+
+        String verboseStickContents = String.format("%d;%d,start:%d,finish:%d", stickNumber, startTime, startTime, finishTime) + ((punchesString == "") ? "" : ("," + punchesString));
+        return (verboseStickContents);
+    }
+
     public boolean isClearedStick() {
         return ((startTime == 0) && (finishTime == 0) && ((punches == null) || (punches.size() == 0)));
+    }
+
+    private String formatTimeTaken(int timeTaken) {
+        int hours = timeTaken / 3600;
+        int minutes = (timeTaken % 3600) / 60;
+        int seconds = timeTaken % 60;
+
+        if (hours == 0) {
+            return(String.format("%02dm:%02ds", minutes, seconds));
+        }
+        else {
+            return(String.format("%02dh:%02dm:%02ds", hours, minutes, seconds));
+        }
     }
 }

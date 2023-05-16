@@ -134,7 +134,7 @@ public class UsbProber extends Thread {
         List<UsbSerialDriver> drivers = prober.findAllDrivers(manager);
 
         if (drivers.size() == 0) {
-            updateStatus("Did not find any compatible drivers");
+            updateStatus("No SI reader found, is one connected?");
             return;
         }
         else {
@@ -182,6 +182,7 @@ public class UsbProber extends Thread {
                             reader.sendAck();
                         } else {
                             notifyCardFound(siCard);
+                            updateStatus("Read card: " + siCard.cardId);
                             // String punchString = siCard.punches.stream().map(punch -> (punch.getCode() + ":" + punch.getTime())).collect(Collectors.joining(","));
                             // updateStatus(String.format("Read card %d, start %d, finish %d, punches: %s", siCard.cardId, siCard.startTime, siCard.finishTime, punchString));
                         }

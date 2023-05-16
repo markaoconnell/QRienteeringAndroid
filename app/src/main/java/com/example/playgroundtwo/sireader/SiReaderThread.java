@@ -76,7 +76,7 @@ public class SiReaderThread extends Thread {
                 int numPunches = r.nextInt(10) + 1;
                 List<Pair<Integer, Integer>> fakePunches = new ArrayList<Pair<Integer, Integer>>();
 
-                if (r.nextInt(2) == 0) {
+                if (r.nextInt(3) == 0) {
                     for (int i = 0; i < numPunches; i++) {
                         int controlNum = r.nextInt(25) + 100;
                         int timestamp = startTime + ((totalTime / (numPunches + 2)) * (i + 1));

@@ -1,6 +1,7 @@
 package com.example.playgroundtwo;
 
 import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Pair;
 import android.view.LayoutInflater;
@@ -9,6 +10,7 @@ import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.TextView;
 
+import androidx.annotation.ColorInt;
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.preference.PreferenceManager;
@@ -95,7 +97,7 @@ public class SecondFragment extends Fragment {
         usbProber = new UsbProber((MainActivity) this.getActivity());
         usbProber.setHandler(MainActivity.getUIHandler());
         TextView infoTextWidget = binding.textviewFirst;
-        usbProber.setCallback(infoString -> infoTextWidget.setText(infoTextWidget.getText() + "\n" + infoString));
+        usbProber.setCallback(infoString -> infoTextWidget.setText(infoString));
 
         siReaderThread = new SiReaderThread(usbProber);
         siReaderThread.setHandler(MainActivity.getUIHandler());
@@ -128,6 +130,7 @@ public class SecondFragment extends Fragment {
 
     private void addNewResultEntry(LayoutInflater inflater, UserInfo userInfo) {
         addResultEntry(inflater, userInfo);
+        userInfo.getStatusWidget().siStickDebugTextArea.setText(userInfo.getStickInfo().getVerboseStickSummaryString());
 
         // Now check to see what actions to kick off - registration or download
         if (userInfo.getStickInfo().getStartTime() != 0) {
@@ -329,7 +332,11 @@ public class SecondFragment extends Fragment {
             }
         });
 
-        stickEntryBinding.downloadButton.setEnabled(!userInfo.getStickInfo().isClearedStick());
+        if (userInfo.getStickInfo().isClearedStick()) {
+            stickEntryBinding.downloadButton.setEnabled(false);
+            stickEntryBinding.downloadButton.setBackgroundColor(Color.GRAY);
+            stickEntryBinding.downloadButton.setVisibility(View.GONE);
+        }
         stickEntryBinding.downloadButton.setOnClickListener(v -> {
             UrlCaller uploadCaller = new UrlCaller(settingsUrl, accessKey, siteTimeout);
             UploadResults resultUploader = new UploadResults(uploadCaller, eventId, userInfo);
