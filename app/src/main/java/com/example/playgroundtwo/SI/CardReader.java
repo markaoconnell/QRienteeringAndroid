@@ -30,6 +30,7 @@ public class CardReader  {
     public static class CardEntry {
 
         public long cardId;
+        public long initialCardId;
         public long startTime;
         public long finishTime;
         public long checkTime;
@@ -317,6 +318,14 @@ public class CardReader  {
                 }
                 default:
                     break;
+            }
+        }
+
+        if (entry != null) {
+            if (entry.cardId == 0) {
+                entry.initialCardId = cardInfo.cardId;
+            } else {
+                entry.initialCardId = entry.cardId;
             }
         }
 

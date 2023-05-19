@@ -57,17 +57,26 @@ public class UsbProber extends Thread {
         this.cardFoundCallback = c;
     }
 
-    protected void notifyListeners(String notificationString) {
+    protected void notifyListeners(String notificationString, boolean isError) {
         if (callback != null) {
             if (handler != null) {
                 handler.post(new Runnable() {
                     @Override
                     public void run() {
-                        callback.OnInfoFound(notificationString);
+                        if (!isError) {
+                            callback.OnInfoFound(notificationString);
+                        }
+                        else {
+                            callback.OnErrorEncountered(notificationString);
+                        }
                     }
                 });
             } else {
-                callback.OnInfoFound(notificationString);
+                if (!isError) {
+                    callback.OnInfoFound(notificationString);
+                } else {
+                    callback.OnErrorEncountered(notificationString);
+                }
             }
         }
     }
@@ -80,7 +89,12 @@ public class UsbProber extends Thread {
 
     public void updateStatus(String message) {
         Log.i(myLogId, message);
-        notifyListeners(message);
+        notifyListeners(message, false);
+    }
+
+    public void updateWithErrorStatus(String message) {
+        Log.e(myLogId, message);
+        notifyListeners(message, true);
     }
 
     public void run() {
@@ -134,7 +148,7 @@ public class UsbProber extends Thread {
         List<UsbSerialDriver> drivers = prober.findAllDrivers(manager);
 
         if (drivers.size() == 0) {
-            updateStatus("No SI reader found, is one connected?");
+            updateWithErrorStatus("No SI reader found, is one connected?");
             return;
         }
         else {
@@ -161,7 +175,7 @@ public class UsbProber extends Thread {
             port.open(connection);
         }
         catch (IOException ioe) {
-            updateStatus("Failed to open port - " + ioe.getMessage());
+            updateWithErrorStatus("Failed to open port - " + ioe.getMessage());
             return;
         }
 
@@ -178,7 +192,7 @@ public class UsbProber extends Thread {
                         if (siCard.cardId == 0) {
                             // The card must have been removed from the reader while trying to read the data
                             // Reset the station
-                            updateStatus("Received cardId of 0 (card removed while reading?), sending Ack to station");
+                            updateWithErrorStatus(String.format("Card %d removed while reading, please reinsert", siCard.initialCardId));
                             reader.sendAck();
                         } else {
                             notifyCardFound(siCard);
@@ -193,7 +207,7 @@ public class UsbProber extends Thread {
             }
         }
         catch (SiStationDisconnectedException sde) {
-            updateStatus("Possible station disconnection?  Exiting SI reader");
+            updateWithErrorStatus("Possible station disconnection?  Exiting SI reader");
         }
 
         reader.close();
@@ -236,12 +250,12 @@ public class UsbProber extends Thread {
         // manager.requestPermission(device, permissionIntent);
 
         Log.i(myLogId, String.format("Found %d USB devices.", deviceList.size()));
-        notifyListeners(String.format("Found %d USB devices.", deviceList.size()));
+        // notifyListeners(String.format("Found %d USB devices.", deviceList.size()));
         for (Map.Entry<String, UsbDevice> thisDevice : deviceList.entrySet()) {
             Log.i(myLogId, String.format("Device: %s, VendorId: %d , ProdId: %d ", thisDevice.getKey(), thisDevice.getValue().getVendorId(), thisDevice.getValue().getProductId()));
-            notifyListeners(String.format("Device: %s, VendorId: %d , ProdId: %d ", thisDevice.getKey(), thisDevice.getValue().getVendorId(), thisDevice.getValue().getProductId()));
-            notifyListeners(String.format("Class: %d, subclass: %d, Protocol: %d", thisDevice.getValue().getDeviceClass(), thisDevice.getValue().getDeviceSubclass(), thisDevice.getValue().getDeviceProtocol()));
-            notifyListeners(String.format("Now probing %s more deeply, asking permission", thisDevice.getValue().getProductName()));
+            // notifyListeners(String.format("Device: %s, VendorId: %d , ProdId: %d ", thisDevice.getKey(), thisDevice.getValue().getVendorId(), thisDevice.getValue().getProductId()));
+            // notifyListeners(String.format("Class: %d, subclass: %d, Protocol: %d", thisDevice.getValue().getDeviceClass(), thisDevice.getValue().getDeviceSubclass(), thisDevice.getValue().getDeviceProtocol()));
+            // notifyListeners(String.format("Now probing %s more deeply, asking permission", thisDevice.getValue().getProductName()));
 
             UsbDevice dev = thisDevice.getValue();
             if (manager.hasPermission(dev)) {
@@ -256,11 +270,11 @@ public class UsbProber extends Thread {
         if (!permissionGranted) {
             if (usbDevice == null) {
                 Log.i(myLogId, String.format("How is the device null here, permissionGranted is %s", (permissionGranted ? "true" : "false")));
-                notifyListeners(String.format("Device is null, permissionGranted is %s", (permissionGranted ? "true" : "false")));
+                // notifyListeners(String.format("Device is null, permissionGranted is %s", (permissionGranted ? "true" : "false")));
             }
             else {
                 Log.i(myLogId, String.format("Permission to use device %s not granted", usbDevice.getDeviceName()));
-                notifyListeners(String.format("Permission to use device %s not granted", usbDevice.getDeviceName()));
+                // notifyListeners(String.format("Permission to use device %s not granted", usbDevice.getDeviceName()));
             }
 
             return;
@@ -268,7 +282,7 @@ public class UsbProber extends Thread {
 
         if (usbDevice == null) {
             Log.i(myLogId, String.format("How is the device null here, permissionGranted is %s", (permissionGranted ? "true" : "false")));
-            notifyListeners(String.format("Device is null, permissionGranted is %s", (permissionGranted ? "true" : "false")));
+            // notifyListeners(String.format("Device is null, permissionGranted is %s", (permissionGranted ? "true" : "false")));
         }
 
         String deviceName = usbDevice.getProductName();
@@ -305,7 +319,7 @@ public class UsbProber extends Thread {
 
         if ((readEndpoint != null) && (writeEndpoint != null)) {
             Log.i(myLogId, String.format("Using device %s for reading SI", deviceName));
-            notifyListeners(String.format("Using device %s for reading SI", deviceName));
+            // notifyListeners(String.format("Using device %s for reading SI", deviceName));
 
 /*
             SIReader reader = new SIReader(usbDevice, readEndpoint, writeEndpoint);
@@ -315,7 +329,7 @@ public class UsbProber extends Thread {
         }
         else {
             Log.i(myLogId, String.format("Device %s not appropriate for SI reading - lacking read or write endpoint", deviceName));
-            notifyListeners(String.format("Device %s not appropriate for SI reading - lacking read or write endpoint", deviceName));
+            // notifyListeners(String.format("Device %s not appropriate for SI reading - lacking read or write endpoint", deviceName));
         }
     }
 }

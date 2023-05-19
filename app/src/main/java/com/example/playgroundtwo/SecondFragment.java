@@ -27,6 +27,7 @@ import com.example.playgroundtwo.sireader.SiStickResult;
 import com.example.playgroundtwo.url.UrlCallResults;
 import com.example.playgroundtwo.url.UrlCaller;
 import com.example.playgroundtwo.usbhandler.UsbProber;
+import com.example.playgroundtwo.usbhandler.UsbProberCallback;
 import com.example.playgroundtwo.userinfo.DownloadResults;
 import com.example.playgroundtwo.userinfo.RegistrationResults;
 import com.example.playgroundtwo.userinfo.UserInfo;
@@ -97,7 +98,19 @@ public class SecondFragment extends Fragment {
         usbProber = new UsbProber((MainActivity) this.getActivity());
         usbProber.setHandler(MainActivity.getUIHandler());
         TextView infoTextWidget = binding.textviewFirst;
-        usbProber.setCallback(infoString -> infoTextWidget.setText(infoString));
+        usbProber.setCallback(new UsbProberCallback() {
+            @Override
+            public void OnInfoFound(String infoString) {
+                infoTextWidget.setText(infoString);
+                infoTextWidget.setError(null);
+            }
+
+            @Override
+            public void OnErrorEncountered(String errorString) {
+                infoTextWidget.setText(errorString);
+                infoTextWidget.setError(errorString);
+            }
+        });
 
         siReaderThread = new SiReaderThread(usbProber);
         siReaderThread.setHandler(MainActivity.getUIHandler());
@@ -133,7 +146,7 @@ public class SecondFragment extends Fragment {
         userInfo.getStatusWidget().siStickDebugTextArea.setText(userInfo.getStickInfo().getVerboseStickSummaryString());
 
         // Now check to see what actions to kick off - registration or download
-        if (userInfo.getStickInfo().getStartTime() != 0) {
+        if (!userInfo.getStickInfo().isClearedStick()) {
             // Download
             UrlCaller uploadCaller = new UrlCaller(settingsUrl, accessKey, siteTimeout);
             UploadResults resultUploader = new UploadResults(uploadCaller, eventId, userInfo);
@@ -160,12 +173,15 @@ public class SecondFragment extends Fragment {
 
                     if (resultDetails.hasErrors()) {
                         userInfo.getStatusWidget().statusField.setText(resultDetails.errors);
+                        userInfo.getStatusWidget().statusField.setError(resultDetails.errors);
                     }
                     else {
                         userInfo.getStatusWidget().statusField.setText(resultDetails.courseStatus);
+                        userInfo.getStatusWidget().statusField.setError(null);
                     }
                 } else if (results.isConnectivityFailure()) {
                     userInfo.getStatusWidget().stickMemberName.setText("Connectivity failure - retry later");
+                    userInfo.getStatusWidget().stickMemberName.setError("No response from web site, retry later");
                 } else { // other error
                     userInfo.getStatusWidget().stickMemberName.setText("Unknown failure - retry later");
                 }
@@ -189,12 +205,15 @@ public class SecondFragment extends Fragment {
                                 userInfo.getStatusWidget().stickNavigationLayout.setVisibility(View.GONE);
                             }
                             else {
+                                userInfo.getStatusWidget().stickMemberName.setError("No member found");
                                 userInfo.getStatusWidget().stickMemberName.setText("No member found");
                             }
                         } else if (lookupResults.isConnectivityFailure()) {
                             userInfo.getStatusWidget().stickMemberName.setText("Connectivity failure - retry later");
+                            userInfo.getStatusWidget().stickMemberName.setError("No response from web site, retry later");
                         } else { // other error
                             userInfo.getStatusWidget().stickMemberName.setText("Unknown failure - retry later");
+                            userInfo.getStatusWidget().stickMemberName.setError("Unknown failure - retry later");
                         }
                     });
 
@@ -224,6 +243,7 @@ public class SecondFragment extends Fragment {
                     }
                     else {
                         userInfo.getStatusWidget().stickMemberName.setText("No member found");
+                        userInfo.getStatusWidget().stickMemberName.setError("No member found");
                     }
                 } else if (results.isConnectivityFailure()) {
                     userInfo.getStatusWidget().stickMemberName.setText("Connectivity failure - retry later");
@@ -312,6 +332,7 @@ public class SecondFragment extends Fragment {
                             else {
                                 stickEntryBinding.statusField.setText("Registered successfully");
                             }
+                            stickEntryBinding.statusField.setError(null);
                             userInfo.setDownloadResults(null);  // Clear this, as it is now obsolete with the new registration
                             stickEntryBinding.courseField.setText(courseToRun.replaceFirst("^[0-9]+-", ""));
                         }
@@ -359,9 +380,11 @@ public class SecondFragment extends Fragment {
 
                     if (resultDetails.hasErrors()) {
                         userInfo.getStatusWidget().statusField.setText(resultDetails.errors);
+                        userInfo.getStatusWidget().statusField.setError(resultDetails.errors);
                     }
                     else {
                         userInfo.getStatusWidget().statusField.setText(resultDetails.courseStatus);
+                        userInfo.getStatusWidget().statusField.setError(null);
                     }
                 } else if (results.isConnectivityFailure()) {
                     userInfo.getStatusWidget().stickMemberName.setText("Connectivity failure - retry later");
