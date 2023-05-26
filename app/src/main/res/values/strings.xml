@@ -32,6 +32,8 @@
     <string name="settings_site_timeout">Site access timeout</string>
     <string name="default_invalid_url">No URL set</string>
     <string name="default_invalid_key">No_key</string>
+    <string name="enable_simulation_mode">Enable simulation mode</string>
+    <string name="enable_verbose_si_readout">Print verbose SI unit readout</string>
 
 
     <!-- For the individual entries in the finisher / register view -->

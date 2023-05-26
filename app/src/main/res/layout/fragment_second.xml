@@ -4,6 +4,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:layout_gravity="center"
+    app:layout_anchorGravity="center"
     tools:context=".SecondFragment">
 
     <ScrollView
@@ -25,8 +27,9 @@
 
             <TextView
                 android:id="@+id/textview_first"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_gravity="center"
                 android:text="@string/hello_first_fragment"
                 android:textAlignment="center" />
 

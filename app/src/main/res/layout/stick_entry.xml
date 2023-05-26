@@ -78,8 +78,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_weight="0"
-                android:hint="Name for registration"
-                android:text="Enter Name Here" />
+                android:hint="Name for registration" />
 
             <Spinner
                 android:id="@+id/course_choice_spinner"

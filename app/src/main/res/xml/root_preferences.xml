@@ -23,5 +23,16 @@
             android:title="@string/settings_site_timeout" />
 
     </PreferenceCategory>
+    <PreferenceCategory android:title="Advanced">
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="@string/enable_simulation_mode"
+            android:title="@string/enable_simulation_mode" />
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="@string/enable_verbose_si_readout"
+            android:title="@string/enable_verbose_si_readout" />
+    </PreferenceCategory>
 
 </PreferenceScreen>

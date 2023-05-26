@@ -16,10 +16,14 @@ public class SiReaderThread extends Thread {
     private SiResultHandler resultHandler;
     private volatile boolean stopRunning;
     private UsbProber siReader;
+    private boolean runSimulationIfNoSiReader;
+    private boolean reportVerboseSiResults;
 
     public SiReaderThread(UsbProber readerObj) {
         stopRunning = false;
         siReader = readerObj;
+        runSimulationIfNoSiReader = false;
+        reportVerboseSiResults = false;
     }
 
     public void setHandler(Handler completionHandler) {
@@ -28,6 +32,14 @@ public class SiReaderThread extends Thread {
 
     public void setSiResultHandler(SiResultHandler resultHandler) {
         this.resultHandler = resultHandler;
+    }
+
+    public void useSimulationMode(boolean allowSimulationMode) {
+        runSimulationIfNoSiReader = allowSimulationMode;
+    }
+
+    public void printVerboseSiResults(boolean verboseResults) {
+        reportVerboseSiResults = verboseResults;
     }
 
     @Override
@@ -42,7 +54,7 @@ public class SiReaderThread extends Thread {
         });
 
         siReader.run();
-        if (!stopRunning) {
+        if (!stopRunning && runSimulationIfNoSiReader) {
             simulationRun();
         }
     }

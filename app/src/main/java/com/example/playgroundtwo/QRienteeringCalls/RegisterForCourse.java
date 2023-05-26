@@ -24,12 +24,14 @@ public class RegisterForCourse extends BaseBackgroundTask {
 
         private String webResultString;
 
-        public RegistrationResultsSuccess () {
+        public RegistrationResultsSuccess (String course) {
+            registeredCourse = course;
             success = true;
         }
 
-        public RegistrationResultsSuccess(String nreClassFound) {
+        public RegistrationResultsSuccess(String course, String nreClassFound) {
             success = true;
+            registeredCourse = course;
             nreClass = nreClassFound;
         }
 
@@ -137,16 +139,16 @@ public class RegisterForCourse extends BaseBackgroundTask {
                     String[] classPieces = classMatcher.group().split(",");
                     if (classPieces.length >= 3) {
                         String nreClass = classPieces[2];
-                        successfulResult = new RegistrationResultsSuccess(nreClass);
+                        successfulResult = new RegistrationResultsSuccess(course, nreClass);
                     }
                     else {
                         // This should really never happen, but this makes sure that
                         // successfulResult has always been initialized
-                        successfulResult = new RegistrationResultsSuccess();
+                        successfulResult = new RegistrationResultsSuccess(course);
                     }
                 }
                 else {
-                    successfulResult = new RegistrationResultsSuccess();
+                    successfulResult = new RegistrationResultsSuccess(course);
                 }
 
                 successfulResult.addWebResultString(webResult);

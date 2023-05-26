@@ -3,6 +3,7 @@ package com.example.playgroundtwo.userinfo;
 public class RegistrationResults {
     public boolean success;
     protected String nreClass;
+    protected String registeredCourse;
     protected String errorDescription;
 
     // Only allow this to be created as a success or an error
@@ -15,6 +16,9 @@ public class RegistrationResults {
 
     public String getNreClass() {
         return (nreClass);
+    }
+    public String getCourse() {
+        return (registeredCourse);
     }
 
     public boolean hasErrors() {

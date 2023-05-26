@@ -49,8 +49,9 @@ public class SecondFragment extends Fragment {
     private String [] courseNames = new String[0];
     SharedPreferences sharedPreferences;
 
-    private static int numberResults = 1;
     private static List<UserInfo> actualResults = new ArrayList<>();
+    private boolean simulationModeEnabled;
+    private boolean verboseSIUnitResults;
 
     @Override
     public View onCreateView(
@@ -65,6 +66,8 @@ public class SecondFragment extends Fragment {
         String defaultInvalidURL = getResources().getString(R.string.default_invalid_url);
         settingsUrl = sharedPreferences.getString(getResources().getString(R.string.settings_url), defaultInvalidURL);
         String siteTimeoutString = sharedPreferences.getString(getResources().getString(R.string.settings_site_timeout), "10");
+        simulationModeEnabled = sharedPreferences.getBoolean(getResources().getString(R.string.enable_simulation_mode), false);
+        verboseSIUnitResults = sharedPreferences.getBoolean(getResources().getString(R.string.enable_verbose_si_readout), false);
 
         try {
             siteTimeout = Integer.parseInt(siteTimeoutString);
@@ -123,19 +126,10 @@ public class SecondFragment extends Fragment {
             }
         });
 
+        siReaderThread.useSimulationMode(simulationModeEnabled);
+        siReaderThread.printVerboseSiResults(verboseSIUnitResults);
+
         siReaderThread.start();
-
-
-        /*
-        for (int thisResult = 0; thisResult < numberResults; thisResult++) {
-            SiStickResult fakeResult = new SiStickResult(thisResult, 0, 0, null);
-            UserInfo userInfo = new UserInfo(fakeResult);
-
-            addResultEntry(inflater, userInfo);
-        }
-         */
-
-        //numberResults++;
 
         return binding.getRoot();
 
@@ -143,7 +137,6 @@ public class SecondFragment extends Fragment {
 
     private void addNewResultEntry(LayoutInflater inflater, UserInfo userInfo) {
         addResultEntry(inflater, userInfo);
-        userInfo.getStatusWidget().siStickDebugTextArea.setText(userInfo.getStickInfo().getVerboseStickSummaryString());
 
         // Now check to see what actions to kick off - registration or download
         if (!userInfo.getStickInfo().isClearedStick()) {
@@ -157,28 +150,8 @@ public class SecondFragment extends Fragment {
                 if (results.isSuccess()) {
                     DownloadResults resultDetails = resultUploader.getResultDetails();
                     userInfo.setDownloadResults(resultDetails);
-                    if (resultDetails.registrationName != null) {
-                        userInfo.setMemberName(resultDetails.registrationName);
-                        if (!resultDetails.hasNreClass()) {
-                            userInfo.getStatusWidget().stickMemberName.setText(userInfo.getMemberName());
-                        } else {
-                            userInfo.getStatusWidget().stickMemberName.setText(userInfo.getMemberName() + " (" + resultDetails.nreClass + ")");
-                        }
-                        userInfo.getStatusWidget().timeTakenField.setText(resultDetails.timeTaken);
-                        userInfo.getStatusWidget().courseField.setText(resultDetails.courseRun);
-                    }
-                    else {
-                        performStickLookup = true;
-                    }
-
-                    if (resultDetails.hasErrors()) {
-                        userInfo.getStatusWidget().statusField.setText(resultDetails.errors);
-                        userInfo.getStatusWidget().statusField.setError(resultDetails.errors);
-                    }
-                    else {
-                        userInfo.getStatusWidget().statusField.setText(resultDetails.courseStatus);
-                        userInfo.getStatusWidget().statusField.setError(null);
-                    }
+                    userInfo.setRegistrationResults(null);
+                    displayDownloadResults(userInfo);
                 } else if (results.isConnectivityFailure()) {
                     userInfo.getStatusWidget().stickMemberName.setText("Connectivity failure - retry later");
                     userInfo.getStatusWidget().stickMemberName.setError("No response from web site, retry later");
@@ -186,28 +159,15 @@ public class SecondFragment extends Fragment {
                     userInfo.getStatusWidget().stickMemberName.setText("Unknown failure - retry later");
                 }
 
-                if (performStickLookup) {
+                // If the download didn't find a registered person, try looking them up as a member
+                if (userInfo.getMemberName() == null) {
                     UrlCaller lookupCaller = new UrlCaller(settingsUrl, accessKey, siteTimeout);
                     LookupSiUnit lookupHandler = new LookupSiUnit(lookupCaller, eventId, ((MainActivity) getActivity()).checkPreregistrationList(), userInfo);
                     lookupHandler.setHandler(MainActivity.getUIHandler());
                     lookupHandler.setCallback(l -> {
                         UrlCallResults lookupResults = lookupHandler.getUrlCallResults();
                         if (lookupResults.isSuccess()) {
-                            // The call may have returned successfully, but it may not have found a member for this stick
-                            if (userInfo.getMemberName() != null) {
-                                userInfo.getStatusWidget().stickMemberName.setText(userInfo.getMemberName());
-                                userInfo.getStatusWidget().registerNameField.setText(userInfo.getMemberName());
-                                if (!userInfo.getCellPhone().equals("")) {
-                                    userInfo.getStatusWidget().emergencyContact.setText(userInfo.getCellPhone());
-                                }
-
-                                userInfo.getStatusWidget().registerLayout.setVisibility(View.VISIBLE);
-                                userInfo.getStatusWidget().stickNavigationLayout.setVisibility(View.GONE);
-                            }
-                            else {
-                                userInfo.getStatusWidget().stickMemberName.setError("No member found");
-                                userInfo.getStatusWidget().stickMemberName.setText("No member found");
-                            }
+                            handleLookupResults(userInfo);
                         } else if (lookupResults.isConnectivityFailure()) {
                             userInfo.getStatusWidget().stickMemberName.setText("Connectivity failure - retry later");
                             userInfo.getStatusWidget().stickMemberName.setError("No response from web site, retry later");
@@ -230,21 +190,7 @@ public class SecondFragment extends Fragment {
             lookupHandler.setCallback(t -> {
                 UrlCallResults results = lookupHandler.getUrlCallResults();
                 if (results.isSuccess()) {
-                    // The call may have returned successfully, but it may not have found a member for this stick
-                    if (userInfo.getMemberName() != null) {
-                        userInfo.getStatusWidget().stickMemberName.setText(userInfo.getMemberName());
-                        userInfo.getStatusWidget().registerNameField.setText(userInfo.getMemberName());
-                        if (!userInfo.getCellPhone().equals("")) {
-                            userInfo.getStatusWidget().emergencyContact.setText(userInfo.getCellPhone());
-                        }
-
-                        userInfo.getStatusWidget().registerLayout.setVisibility(View.VISIBLE);
-                        userInfo.getStatusWidget().stickNavigationLayout.setVisibility(View.GONE);
-                    }
-                    else {
-                        userInfo.getStatusWidget().stickMemberName.setText("No member found");
-                        userInfo.getStatusWidget().stickMemberName.setError("No member found");
-                    }
+                    handleLookupResults(userInfo);
                 } else if (results.isConnectivityFailure()) {
                     userInfo.getStatusWidget().stickMemberName.setText("Connectivity failure - retry later");
                 } else { // other error
@@ -259,8 +205,26 @@ public class SecondFragment extends Fragment {
         StickEntryBinding stickEntryBinding = StickEntryBinding.inflate(inflater, binding.stickInfoLayout, true);
         stickEntryBinding.stickNumber.setText(String.valueOf(userInfo.getStickInfo().getStickNumber()));
 
+        userInfo.setStatusWidget(stickEntryBinding);
+
+        if (verboseSIUnitResults) {
+            userInfo.getStatusWidget().siStickDebugTextArea.setText(userInfo.getStickInfo().getVerboseStickSummaryString());
+        }
+
         if (userInfo.getMemberName() != null) {
-            stickEntryBinding.stickMemberName.setText(userInfo.getMemberName());
+            userInfo.getStatusWidget().stickMemberName.setText(userInfo.getMemberName());
+            userInfo.getStatusWidget().registerNameField.setText(userInfo.getMemberName());
+            if (!userInfo.getCellPhone().equals("")) {
+                userInfo.getStatusWidget().emergencyContact.setText(userInfo.getCellPhone());
+            }
+        }
+
+        if (userInfo.getDownloadResults() != null) {
+            displayDownloadResults(userInfo);
+        }
+
+        if (userInfo.getRegistrationResults() != null) {
+            displayRegistrationResults(userInfo);
         }
 
         if (courseList.size() > 0) {
@@ -288,8 +252,6 @@ public class SecondFragment extends Fragment {
 
                 stickEntryBinding.registerLayout.setVisibility(View.VISIBLE);
                 stickEntryBinding.stickNavigationLayout.setVisibility(View.GONE);
-
-                stickEntryBinding.registerNameField.setText(stickEntryBinding.stickMemberName.getText());
             }
         });
 
@@ -325,20 +287,9 @@ public class SecondFragment extends Fragment {
                     UrlCallResults results = registrationHandler.getUrlCallResults();
                     if (results.isSuccess()) {
                         RegistrationResults regResults = registrationHandler.getRegistrationResults();
-                        if (regResults.success) {
-                            if (regResults.hasNreClass()) {
-                                stickEntryBinding.statusField.setText("Registered successfully - " + regResults.getNreClass());
-                            }
-                            else {
-                                stickEntryBinding.statusField.setText("Registered successfully");
-                            }
-                            stickEntryBinding.statusField.setError(null);
-                            userInfo.setDownloadResults(null);  // Clear this, as it is now obsolete with the new registration
-                            stickEntryBinding.courseField.setText(courseToRun.replaceFirst("^[0-9]+-", ""));
-                        }
-                        else {
-                            stickEntryBinding.statusField.setText(regResults.getErrorDescription());
-                        }
+                        userInfo.setRegistrationResults(regResults);
+                        userInfo.setDownloadResults(null);
+                        displayRegistrationResults(userInfo);
                     } else if (results.isConnectivityFailure()) {
                         userInfo.getStatusWidget().stickMemberName.setText("Connectivity failure - retry later");
                     } else { // other error
@@ -368,24 +319,7 @@ public class SecondFragment extends Fragment {
                     DownloadResults resultDetails = resultUploader.getResultDetails();
                     userInfo.setRegistrationResults(null);  // this is obsolete now that we have a successful download
                     userInfo.setDownloadResults(resultDetails);
-                    if (userInfo.getMemberName() != null) {
-                        if (!resultDetails.hasNreClass()) {
-                            userInfo.getStatusWidget().stickMemberName.setText(userInfo.getMemberName());
-                        } else {
-                            userInfo.getStatusWidget().stickMemberName.setText(userInfo.getMemberName() + " (" + resultDetails.nreClass + ")");
-                        }
-                        userInfo.getStatusWidget().timeTakenField.setText(resultDetails.timeTaken);
-                        userInfo.getStatusWidget().courseField.setText(resultDetails.courseRun);
-                    }
-
-                    if (resultDetails.hasErrors()) {
-                        userInfo.getStatusWidget().statusField.setText(resultDetails.errors);
-                        userInfo.getStatusWidget().statusField.setError(resultDetails.errors);
-                    }
-                    else {
-                        userInfo.getStatusWidget().statusField.setText(resultDetails.courseStatus);
-                        userInfo.getStatusWidget().statusField.setError(null);
-                    }
+                    displayDownloadResults(userInfo);
                 } else if (results.isConnectivityFailure()) {
                     userInfo.getStatusWidget().stickMemberName.setText("Connectivity failure - retry later");
                 } else { // other error
@@ -399,8 +333,81 @@ public class SecondFragment extends Fragment {
 
         userInfo.setStatusWidget(stickEntryBinding);
 
-        // By default, the registration view is hidden - this may be overriden later
-        stickEntryBinding.registerLayout.setVisibility(View.GONE);
+        // Look at the current state to decide what should be visible
+        if ((userInfo.getMemberName() != null) && userInfo.getStickInfo().isClearedStick()) {
+            stickEntryBinding.stickNavigationLayout.setVisibility(View.GONE);
+            stickEntryBinding.registerLayout.setVisibility(View.VISIBLE);
+        }
+        else {
+            stickEntryBinding.stickNavigationLayout.setVisibility(View.VISIBLE);
+            stickEntryBinding.registerLayout.setVisibility(View.GONE);
+        }
+    }
+
+    private void displayDownloadResults(UserInfo resultInfo) {
+        DownloadResults resultDetails = resultInfo.getDownloadResults();
+
+        if (resultDetails.registrationName != null) {
+            resultInfo.setMemberName(resultDetails.registrationName);
+            resultInfo.getStatusWidget().registerNameField.setText(resultInfo.getMemberName());
+            if (!resultDetails.hasNreClass()) {
+                resultInfo.getStatusWidget().stickMemberName.setText(resultInfo.getMemberName());
+            } else {
+                resultInfo.getStatusWidget().stickMemberName.setText(resultInfo.getMemberName() + " (" + resultDetails.nreClass + ")");
+            }
+            resultInfo.getStatusWidget().timeTakenField.setText(resultDetails.timeTaken);
+            resultInfo.getStatusWidget().courseField.setText(resultDetails.courseRun);
+        }
+
+        if (resultDetails.hasErrors()) {
+            showTextWithError(resultInfo.getStatusWidget().statusField, resultDetails.errors);
+        }
+        else {
+            showTextClearError(resultInfo.getStatusWidget().statusField, resultDetails.courseStatus);
+        }
+    }
+
+    private void displayRegistrationResults(UserInfo resultInfo) {
+        RegistrationResults regResults = resultInfo.getRegistrationResults();
+        if (regResults.success) {
+            if (regResults.hasNreClass()) {
+                showTextClearError(resultInfo.getStatusWidget().statusField, "Registered successfully - " + regResults.getNreClass());
+            }
+            else {
+                showTextClearError(resultInfo.getStatusWidget().statusField, "Registered successfully");
+            }
+            resultInfo.getStatusWidget().courseField.setText(regResults.getCourse().replaceFirst("^[0-9]+-", ""));
+        }
+        else {
+            showTextWithError(resultInfo.getStatusWidget().statusField, regResults.getErrorDescription());
+        }
+    }
+
+    private void handleLookupResults(UserInfo userInfo) {
+        if (userInfo.getMemberName() != null) {
+            userInfo.getStatusWidget().stickMemberName.setText(userInfo.getMemberName());
+            userInfo.getStatusWidget().registerNameField.setText(userInfo.getMemberName());
+            if (!userInfo.getCellPhone().equals("")) {
+                userInfo.getStatusWidget().emergencyContact.setText(userInfo.getCellPhone());
+            }
+
+            userInfo.getStatusWidget().registerLayout.setVisibility(View.VISIBLE);
+            userInfo.getStatusWidget().stickNavigationLayout.setVisibility(View.GONE);
+        }
+        else {
+            userInfo.getStatusWidget().stickMemberName.setText("No member found");
+            userInfo.getStatusWidget().stickMemberName.setError("No member found");
+        }
+    }
+
+    private void showTextClearError(TextView field, String textToSet) {
+        field.setText(textToSet);
+        field.setError(null);
+    }
+
+    private void showTextWithError(TextView field, String textToSet) {
+        field.setText(textToSet);
+        field.setError(textToSet);
     }
 
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
