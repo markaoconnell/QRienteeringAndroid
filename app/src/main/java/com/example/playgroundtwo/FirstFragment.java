@@ -1,5 +1,6 @@
 package com.example.playgroundtwo;
 
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Pair;
@@ -16,6 +17,7 @@ import androidx.preference.PreferenceManager;
 
 import com.example.playgroundtwo.databinding.FragmentFirstBinding;
 import com.example.playgroundtwo.QRienteeringCalls.GetEventList;
+import com.example.playgroundtwo.resultlogging.LogFileRetriever;
 import com.example.playgroundtwo.url.UrlCallResults;
 import com.example.playgroundtwo.url.UrlCaller;
 
@@ -27,6 +29,8 @@ public class FirstFragment extends Fragment {
     private FragmentFirstBinding binding;
     private UrlCaller urlCaller;
     private String xlatedKey;
+
+    private LogFileRetriever logRetriever;
 
     @Override
     public View onCreateView(
@@ -50,6 +54,8 @@ public class FirstFragment extends Fragment {
         catch (Exception e) {
             siteTimeout = 10;
         }
+
+        logRetriever = new LogFileRetriever(getContext());
 
         if (settingsUrl.equals(defaultInvalidURL) || settingsKey.equals(defaultInvalidKey)) {
             binding.buttonFirst.setEnabled(false);
@@ -84,6 +90,40 @@ public class FirstFragment extends Fragment {
             MainActivity.submitBackgroundTask(eventGetter);
         }
 
+        binding.showLogButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                List<Pair<String, String>> logList = logRetriever.getLogFilenames();
+                if (logList.size() > 0) {
+                    RadioGroup rg = new RadioGroup(getActivity());
+                    for (int i = 0; i < logList.size(); i++) {
+                        Pair<String, String> logFile = logList.get(i);
+                        RadioButton rb = new RadioButton(getActivity());
+                        rb.setText(logFile.second);
+                        rb.setId(i);
+                        rg.addView(rb);
+                    }
+                    binding.logFileChooserLayout.addView(rg);
+
+                    binding.emailLogButton.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View view) {
+                            int selected = rg.getCheckedRadioButtonId();
+                            if (selected != -1) {
+                                sendLogFileInEmail(logList.get(selected).first);
+                            }
+                        }
+                    });
+                    binding.showLogButton.setVisibility(View.INVISIBLE);
+                    binding.emailLogButton.setVisibility(View.VISIBLE);
+                }
+                else {
+                    binding.showLogButton.setText("No available logs");
+                    binding.showLogButton.setEnabled(false);
+                }
+            }
+        });
+
 
         return binding.getRoot();
     }
@@ -98,6 +138,7 @@ public class FirstFragment extends Fragment {
                         .navigate(R.id.action_FirstFragment_to_SecondFragment);
             }
         });
+
     }
 
     @Override
@@ -149,5 +190,21 @@ public class FirstFragment extends Fragment {
         ((MainActivity) getActivity()).setEventAndKey(chosenEvent.first, xlatedKey, eventAllowsPreregistration);
         NavHostFragment.findNavController(FirstFragment.this)
                 .navigate(R.id.action_FirstFragment_to_SecondFragment);
+    }
+
+    private void sendLogFileInEmail(String logFilename) {
+        String logContents = logRetriever.getLogContents(logFilename);
+        if (logContents != null) {
+            Intent sendIntent = new Intent();
+            sendIntent.setAction(Intent.ACTION_SEND);
+            sendIntent.putExtra(Intent.EXTRA_TEXT, logContents);
+            sendIntent.setType("text/plain");
+            String extraInfo = "Orienteering SI reader logs for " + logFilename;
+            sendIntent.putExtra(Intent.EXTRA_TITLE, extraInfo);
+            sendIntent.putExtra(Intent.EXTRA_SUBJECT, extraInfo);
+
+            Intent shareIntent = Intent.createChooser(sendIntent, null);
+            startActivity(shareIntent);
+        }
     }
 }

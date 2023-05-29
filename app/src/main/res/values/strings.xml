@@ -48,4 +48,8 @@
     <!-- To move forward to event management -->
     <string name="run_chosen_event">Use chosen event</string>
     <string name="set_url_and_key_error">URL and access key must be set before using this app</string>
+
+    <!-- For log file management -->
+    <string name="show_logs">Show log files</string>
+    <string name="email_logs">Email chosen log(s)</string>
 </resources>

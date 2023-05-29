@@ -3,6 +3,7 @@ package com.example.playgroundtwo;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.util.Log;
 import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -20,6 +21,7 @@ import com.example.playgroundtwo.QRienteeringCalls.RegisterForCourse;
 import com.example.playgroundtwo.QRienteeringCalls.UploadResults;
 import com.example.playgroundtwo.databinding.FragmentSecondBinding;
 import com.example.playgroundtwo.databinding.StickEntryBinding;
+import com.example.playgroundtwo.resultlogging.EventResultLogger;
 import com.example.playgroundtwo.sireader.SiReaderThread;
 import com.example.playgroundtwo.sireader.SiResultHandler;
 import com.example.playgroundtwo.sireader.SiStickResult;
@@ -29,6 +31,7 @@ import com.example.playgroundtwo.sireader.StatusUpdateCallback;
 import com.example.playgroundtwo.userinfo.DownloadResults;
 import com.example.playgroundtwo.userinfo.RegistrationResults;
 import com.example.playgroundtwo.userinfo.UserInfo;
+import com.example.playgroundtwo.util.LogUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,6 +53,8 @@ public class SecondFragment extends Fragment {
     private static List<UserInfo> actualResults = new ArrayList<>();
     private boolean simulationModeEnabled;
     private boolean verboseSIUnitResults;
+
+    private EventResultLogger resultLogger;
 
     @Override
     public View onCreateView(
@@ -74,6 +79,8 @@ public class SecondFragment extends Fragment {
             siteTimeout = 10;
         }
 
+        TextView infoTextWidget = binding.textviewFirst;
+
         eventId = ((MainActivity) getActivity()).getEventId();
         accessKey = ((MainActivity) getActivity()).getKeyForEvent();
 
@@ -86,7 +93,11 @@ public class SecondFragment extends Fragment {
                 courseList = courseListGetter.getCourseListResult();
                 courseNames = courseList.stream().map((item) -> (item.second)).toArray(String[]::new);
             } else if (results.isConnectivityFailure()) {
+                infoTextWidget.setText("Cannot retrieve course list - connectivity error with web site");
+                infoTextWidget.setError("Check connectivity and retry");
             } else { // other error
+                infoTextWidget.setText("Cannot retrieve course list - unknown error");
+                infoTextWidget.setError("Not sure what is happening here");
             }
         });
 
@@ -113,18 +124,30 @@ public class SecondFragment extends Fragment {
             }
         });*/
 
+        // Try and open the interface to log the results - if this errors, just keep going
+        resultLogger = new EventResultLogger(this.getContext(), eventId);
+        try {
+            resultLogger.openLogger();
+        }
+        catch (Exception e) {
+            Log.e(LogUtil.myLogId, String.format("Unable to open result log file for: %s", eventId));
+            resultLogger = null;
+        }
+
         siReaderThread = new SiReaderThread((MainActivity) this.getActivity());
         siReaderThread.setHandler(MainActivity.getUIHandler());
         siReaderThread.setSiResultHandler(new SiResultHandler() {
             @Override
             public void processResult(SiStickResult result) {
                 UserInfo userInfo = new UserInfo(result);
+                if (resultLogger != null) {
+                    resultLogger.logResult(result.getStickSummaryString());
+                }
                 actualResults.add(userInfo);
                 addNewResultEntry(inflater, userInfo);
             }
         });
 
-        TextView infoTextWidget = binding.textviewFirst;
         siReaderThread.setStatusUpdateCallback(new StatusUpdateCallback() {
             @Override
             public void OnInfoFound(String infoString) {
@@ -362,9 +385,9 @@ public class SecondFragment extends Fragment {
                 userInfo.setDownloadResults(null);
                 displayRegistrationResults(userInfo);
             } else if (results.isConnectivityFailure()) {
-                userInfo.getStatusWidget().stickMemberName.setText("Connectivity failure - retry later");
+                showTextWithError(userInfo.getStatusWidget().stickMemberName, "Connectivity failure - retry later");
             } else { // other error
-                userInfo.getStatusWidget().stickMemberName.setText("Unknown failure - retry later");
+                showTextWithError(userInfo.getStatusWidget().stickMemberName, "Unknown failure - retry later");
             }
         });
 
@@ -383,8 +406,7 @@ public class SecondFragment extends Fragment {
             userInfo.getStatusWidget().stickNavigationLayout.setVisibility(View.GONE);
         }
         else {
-            userInfo.getStatusWidget().stickMemberName.setText("No member found");
-            userInfo.getStatusWidget().stickMemberName.setError("No member found");
+            showTextWithError(userInfo.getStatusWidget().stickMemberName, "No member found");
         }
     }
 
@@ -413,6 +435,9 @@ public class SecondFragment extends Fragment {
     @Override
     public void onDestroyView() {
         siReaderThread.stopThread();
+        if (resultLogger != null) {
+            resultLogger.closeLogger();
+        }
         super.onDestroyView();
         binding = null;
     }
