@@ -1,10 +1,22 @@
 package com.example.playgroundtwo.sireader;
 
+import android.content.Context;
+import android.hardware.usb.UsbDeviceConnection;
+import android.hardware.usb.UsbManager;
 import android.os.Handler;
 import android.util.Pair;
 
-import com.example.playgroundtwo.usbhandler.UsbProber;
+import com.example.playgroundtwo.MainActivity;
+import com.example.playgroundtwo.SI.CardReader;
+import com.example.playgroundtwo.SI.SIReader;
+import com.example.playgroundtwo.SI.SiStationDisconnectedException;
+import com.hoho.android.usbserial.driver.Cp21xxSerialDriver;
+import com.hoho.android.usbserial.driver.ProbeTable;
+import com.hoho.android.usbserial.driver.UsbSerialDriver;
+import com.hoho.android.usbserial.driver.UsbSerialPort;
+import com.hoho.android.usbserial.driver.UsbSerialProber;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -15,19 +27,49 @@ public class SiReaderThread extends Thread {
     private Handler handler;
     private SiResultHandler resultHandler;
     private volatile boolean stopRunning;
-    private UsbProber siReader;
+    private MainActivity mainActivity;
     private boolean runSimulationIfNoSiReader;
     private boolean reportVerboseSiResults;
 
-    public SiReaderThread(UsbProber readerObj) {
-        stopRunning = false;
-        siReader = readerObj;
-        runSimulationIfNoSiReader = false;
-        reportVerboseSiResults = false;
-    }
+    private StatusUpdateCallback statusUpdateCallback;
 
     public void setHandler(Handler completionHandler) {
         this.handler = completionHandler;
+    }
+
+    public void setStatusUpdateCallback(StatusUpdateCallback c) {
+        this.statusUpdateCallback = c;
+    }
+
+    protected void notifyStatusUpdate(String notificationString, boolean isError) {
+        if (statusUpdateCallback != null) {
+            if (handler != null) {
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (!isError) {
+                            statusUpdateCallback.OnInfoFound(notificationString);
+                        }
+                        else {
+                            statusUpdateCallback.OnErrorEncountered(notificationString);
+                        }
+                    }
+                });
+            } else {
+                if (!isError) {
+                    statusUpdateCallback.OnInfoFound(notificationString);
+                } else {
+                    statusUpdateCallback.OnErrorEncountered(notificationString);
+                }
+            }
+        }
+    }
+
+    public SiReaderThread(MainActivity mainActivity) {
+        stopRunning = false;
+        this.mainActivity = mainActivity;
+        runSimulationIfNoSiReader = false;
+        reportVerboseSiResults = false;
     }
 
     public void setSiResultHandler(SiResultHandler resultHandler) {
@@ -46,17 +88,102 @@ public class SiReaderThread extends Thread {
     public void run() {
         // The CardReader returns the timestamps in milliseconds, whereas QRienteering expects
         // times in seconds - convert here
-        siReader.setCardFoundCallback(c -> {
+/*        siReader.setCardFoundCallback(c -> {
             List<Pair<Integer, Integer>> myPunches;
             myPunches = c.punches.stream().map(p -> new Pair<Integer, Integer> (p.getCode(), (int) p.getTime() / 1000)).collect(Collectors.toList());
             SiStickResult result = new SiStickResult((int) c.cardId, (int) c.startTime / 1000, (int) c.finishTime / 1000, myPunches);
             processReadStick(result);
-        });
+        });*/
 
-        siReader.run();
+        readSiCards();
         if (!stopRunning && runSimulationIfNoSiReader) {
             simulationRun();
         }
+    }
+
+    private static final String ACTION_USB_PERMISSION =
+            "com.android.example.USB_PERMISSION";
+
+
+    private void readSiCards() {
+        UsbManager manager = (UsbManager) mainActivity.getSystemService(Context.USB_SERVICE);
+
+        // Probe for the SI reader device, which use the VendorID and ProductID below.
+        ProbeTable customTable = new ProbeTable();
+        customTable.addProduct(4292, 32778, Cp21xxSerialDriver.class);
+        //customTable.addProduct(0x1234, 0x0002, FtdiSerialDriver.class);
+
+        UsbSerialProber prober = new UsbSerialProber(customTable);
+        List<UsbSerialDriver> drivers = prober.findAllDrivers(manager);
+
+        if (drivers.size() == 0) {
+            notifyStatusUpdate("No SI reader found, is one connected?", true);
+            return;
+        }
+        else {
+            //updateStatus(String.format("Found %d compatible drivers (I hope), trying one", drivers.size()));
+        }
+
+        // Open a connection to the first available driver.
+        UsbSerialDriver driver = drivers.get(0);
+        //notifyStatusUpdate(String.format("Found %s, opening it", driver.getDevice().getProductName()), false);
+        UsbDeviceConnection connection = manager.openDevice(driver.getDevice());
+        if (connection == null) {
+            notifyStatusUpdate("Found SI reader but could not access it for reading - open device error", true);
+            return;
+        }
+
+        UsbSerialPort port = driver.getPorts().get(0); // Most devices have just one port (port 0)
+        if (port == null) {
+            notifyStatusUpdate("Found SI reader but could not access it for reading - port error", true);
+            return;
+        }
+
+
+        try {
+            port.open(connection);
+        }
+        catch (IOException ioe) {
+            notifyStatusUpdate("Found SI reader but failed to open port - " + ioe.getMessage(), true);
+            return;
+        }
+
+        SIReader reader = new SIReader(port);
+        try {
+            if (reader.probeDevice((m, e) -> notifyStatusUpdate(m, e))) {
+                notifyStatusUpdate("Waiting for card insert", false);
+                CardReader cardReader = new CardReader(reader, (m, e) -> notifyStatusUpdate(m, e));
+                CardReader.CardEntry siCard = null;
+//            SIReader.SiCardInfo siCard = new SIReader.SiCardInfo();
+                while (!this.stopRunning) {
+                    siCard = cardReader.readCardOnce();
+                    if (siCard != null) {
+                        if (siCard.cardId == 0) {
+                            // The card must have been removed from the reader while trying to read the data
+                            // Reset the station
+                            notifyStatusUpdate(String.format("Card %d removed while reading, please reinsert", siCard.initialCardId), true);
+                            reader.sendAck();
+                        } else {
+                            List<Pair<Integer, Integer>> myPunches;
+                            myPunches = siCard.punches.stream().map(p -> new Pair<Integer, Integer> (p.getCode(), (int) p.getTime() / 1000)).collect(Collectors.toList());
+                            SiStickResult result = new SiStickResult((int) siCard.cardId, (int) siCard.startTime / 1000, (int) siCard.finishTime / 1000, myPunches);
+                            processReadStick(result);
+                            notifyStatusUpdate("Read card: " + siCard.cardId, false);
+                            // String punchString = siCard.punches.stream().map(punch -> (punch.getCode() + ":" + punch.getTime())).collect(Collectors.joining(","));
+                            // updateStatus(String.format("Read card %d, start %d, finish %d, punches: %s", siCard.cardId, siCard.startTime, siCard.finishTime, punchString));
+                        }
+                    }
+                }
+            } else {
+                notifyStatusUpdate("SI reader found but cannot communicate, exiting", true);
+            }
+        }
+        catch (SiStationDisconnectedException sde) {
+            notifyStatusUpdate("Possible SI reader disconnection?  No longer reading SI cards.", true);
+        }
+
+        reader.close();
+        return;
     }
 
     private void simulationRun() {
@@ -88,7 +215,7 @@ public class SiReaderThread extends Thread {
                 int numPunches = r.nextInt(10) + 1;
                 List<Pair<Integer, Integer>> fakePunches = new ArrayList<Pair<Integer, Integer>>();
 
-                if (r.nextInt(3) == 0) {
+                if (r.nextInt(3) < 2) {
                     for (int i = 0; i < numPunches; i++) {
                         int controlNum = r.nextInt(25) + 100;
                         int timestamp = startTime + ((totalTime / (numPunches + 2)) * (i + 1));
@@ -108,6 +235,7 @@ public class SiReaderThread extends Thread {
                 }
                 SiStickResult result = new SiStickResult(stick, startTime, finishTime, fakePunches);
                 processReadStick(result);
+                notifyStatusUpdate("Read card: " + stick, false);
             }
         }
     }
@@ -129,6 +257,5 @@ public class SiReaderThread extends Thread {
 
     public void stopThread() {
         stopRunning = true;
-        siReader.stopRunning();
     }
 }

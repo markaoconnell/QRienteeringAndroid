@@ -1,7 +1,6 @@
-package com.example.playgroundtwo.usbhandler;
+package com.example.playgroundtwo.sireader;
 
-public interface UsbProberCallback {
-
+public interface StatusUpdateCallback {
     public void OnInfoFound(String infoString);
     public void OnErrorEncountered(String errorString);
 }

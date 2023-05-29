@@ -1,4 +1,4 @@
-package com.example.playgroundtwo.usbhandler;
+package com.example.playgroundtwo.sireader;
 
 import com.example.playgroundtwo.SI.CardReader;
 import com.example.playgroundtwo.SI.SIReader;

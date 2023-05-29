@@ -3,10 +3,8 @@ package com.example.playgroundtwo.sireader;
 import android.util.Log;
 import android.util.Pair;
 
-import com.example.playgroundtwo.usbhandler.UsbProber;
+import com.example.playgroundtwo.util.LogUtil;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -55,7 +53,7 @@ public class SiStickResult {
             finishTimeForSummary = ((punches.size() == 0) ? startTime : punches.stream().flatMapToInt(p -> IntStream.of(p.second)).max().getAsInt()) + 600;
         }
         stickSummaryString = String.format("%d;%d,start:%d,finish:%d", stickNumber, startTime, startTime, finishTimeForSummary) + ((punchesString == "") ? "" : ("," + punchesString));
-        Log.i(UsbProber.myLogId, stickSummaryString);
+        Log.i(LogUtil.myLogId, stickSummaryString);
         return (stickSummaryString);
     }
 

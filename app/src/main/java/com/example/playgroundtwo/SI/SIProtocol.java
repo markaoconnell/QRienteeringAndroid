@@ -1,10 +1,5 @@
 package com.example.playgroundtwo.SI;
 
-import android.hardware.usb.UsbDevice;
-import android.hardware.usb.UsbDeviceConnection;
-import android.hardware.usb.UsbEndpoint;
-
-import com.example.playgroundtwo.usbhandler.UsbProber;
 import com.hoho.android.usbserial.driver.UsbSerialPort;
 
 import java.io.IOException;
@@ -14,7 +9,7 @@ import java.util.Arrays;
 public class SIProtocol {
     //private UsbSerialPort port;
     private UsbSerialPort serialPort;
-    private UsbProber callback;
+    private SIStationStatusUpdateCallback callback;
 
     private ArrayList<byte[]> msgCache;
 
@@ -28,7 +23,7 @@ public class SIProtocol {
     private static final int WRITE_TIMEOUT = 500;
 
     //public SIProtocol(UsbSerialPort port)
-    public SIProtocol(UsbSerialPort serialPort, UsbProber callback)
+    public SIProtocol(UsbSerialPort serialPort, SIStationStatusUpdateCallback callback)
     {
         this.serialPort = serialPort;
         this.callback = callback;
@@ -83,7 +78,7 @@ public class SIProtocol {
             writtenBytes = buffer.length;
         }
         catch (IOException ioe) {
-            callback.updateStatus("IOException writing to the port: " + ioe.getMessage());
+            callback.notifyStatusUpdate("SIReader IOException writing to the port: " + ioe.getMessage(), true);
         }
 
         return (writtenBytes == buffer.length) ? 0 : -1;
@@ -103,7 +98,7 @@ public class SIProtocol {
             writtenBytes = buffer.length;
         }
         catch (IOException ioe) {
-            callback.updateStatus("IOException writing to the port: " + ioe.getMessage());
+            callback.notifyStatusUpdate("SIReader IOException writing to the port: " + ioe.getMessage(), true);
         }
 
         return (writtenBytes == buffer.length) ? 0 : -1;
@@ -123,7 +118,7 @@ public class SIProtocol {
             writtenBytes = buffer.length;
         }
         catch (IOException ioe) {
-            callback.updateStatus("IOException writing to the port: " + ioe.getMessage());
+            callback.notifyStatusUpdate("SIReader IOException writing to the port: " + ioe.getMessage(), true);
         }
 
         return (writtenBytes == buffer.length) ? 0 : -1;

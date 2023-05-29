@@ -2,22 +2,11 @@ package com.example.playgroundtwo.SI;
 
 import static java.lang.Math.min;
 
-import android.app.PendingIntent;
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
-import android.hardware.usb.UsbDevice;
-import android.hardware.usb.UsbDeviceConnection;
-import android.hardware.usb.UsbManager;
-import android.os.AsyncTask;
-import android.os.Parcel;
-import android.os.Parcelable;
 import android.util.Log;
 
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
-import com.example.playgroundtwo.usbhandler.UsbProber;
+import com.example.playgroundtwo.util.LogUtil;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -64,7 +53,7 @@ public class CardReader  {
 //    UsbDevice device;
 //    private TaskState taskState;
     private SIReader siReader;
-    private UsbProber callback;
+    private SIStationStatusUpdateCallback callback;
 
 
 //    public CardReader(Context context, Calendar zeroTime) {
@@ -76,7 +65,7 @@ public class CardReader  {
 //        this.zeroTimeWeekDay = zeroTime.get(Calendar.DAY_OF_WEEK) % 7;
 //    }
 
-    public CardReader(SIReader siReader, UsbProber callback) {
+    public CardReader(SIReader siReader, SIStationStatusUpdateCallback callback) {
         this.siReader = siReader;
         this.callback = callback;
         zeroTimeBase = 0;
@@ -594,7 +583,7 @@ public class CardReader  {
                // decimalString.add(String.format("%d", dataToRecord[i]));
             }
 
-            Log.d(UsbProber.myLogId, identifier + ": " + hexString.stream().collect(Collectors.joining(",")));
+            Log.d(LogUtil.myLogId, identifier + ": " + hexString.stream().collect(Collectors.joining(",")));
             //Log.d(UsbProber.myLogId, identifier + ": " + decimalString.stream().collect(Collectors.joining(",")));
         }
     }

@@ -1,10 +1,6 @@
 package com.example.playgroundtwo.usbhandler;
 
-import android.app.PendingIntent;
-import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.hardware.usb.UsbConstants;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
@@ -18,6 +14,8 @@ import com.example.playgroundtwo.MainActivity;
 import com.example.playgroundtwo.SI.CardReader;
 import com.example.playgroundtwo.SI.SIReader;
 import com.example.playgroundtwo.SI.SiStationDisconnectedException;
+import com.example.playgroundtwo.sireader.FoundCardCallback;
+import com.example.playgroundtwo.sireader.StatusUpdateCallback;
 import com.hoho.android.usbserial.driver.Cp21xxSerialDriver;
 import com.hoho.android.usbserial.driver.ProbeTable;
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
@@ -28,14 +26,13 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 public class UsbProber extends Thread {
 
     private static boolean usbPermissionGranted = false;
 
     private Handler handler;
-    private UsbProberCallback callback;
+    private StatusUpdateCallback callback;
     private FoundCardCallback cardFoundCallback;
 
     private MainActivity mainActivity;
@@ -50,7 +47,7 @@ public class UsbProber extends Thread {
         this.handler = completionHandler;
     }
 
-    public void setCallback(UsbProberCallback c) {
+    public void setCallback(StatusUpdateCallback c) {
         this.callback = c;
     }
     public void setCardFoundCallback(FoundCardCallback c) {
@@ -181,9 +178,9 @@ public class UsbProber extends Thread {
 
         SIReader reader = new SIReader(port);
         try {
-            if (reader.probeDevice(this)) {
+            if (reader.probeDevice((m,e) -> updateStatus(m))) {
                 updateStatus("Waiting for card insert");
-                CardReader cardReader = new CardReader(reader, this);
+                CardReader cardReader = new CardReader(reader, (m,e) -> updateStatus(m));
                 CardReader.CardEntry siCard = null;
 //            SIReader.SiCardInfo siCard = new SIReader.SiCardInfo();
                 while (!this.stopRunning) {

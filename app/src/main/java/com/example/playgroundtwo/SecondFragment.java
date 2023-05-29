@@ -10,7 +10,6 @@ import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.TextView;
 
-import androidx.annotation.ColorInt;
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.preference.PreferenceManager;
@@ -26,8 +25,7 @@ import com.example.playgroundtwo.sireader.SiResultHandler;
 import com.example.playgroundtwo.sireader.SiStickResult;
 import com.example.playgroundtwo.url.UrlCallResults;
 import com.example.playgroundtwo.url.UrlCaller;
-import com.example.playgroundtwo.usbhandler.UsbProber;
-import com.example.playgroundtwo.usbhandler.UsbProberCallback;
+import com.example.playgroundtwo.sireader.StatusUpdateCallback;
 import com.example.playgroundtwo.userinfo.DownloadResults;
 import com.example.playgroundtwo.userinfo.RegistrationResults;
 import com.example.playgroundtwo.userinfo.UserInfo;
@@ -43,7 +41,7 @@ public class SecondFragment extends Fragment {
     private String settingsUrl;
     private int siteTimeout;
     private SiReaderThread siReaderThread;
-    private UsbProber usbProber;
+    //private UsbProber usbProber;
 
     private List<Pair<String, String>> courseList = new ArrayList<>();
     private String [] courseNames = new String[0];
@@ -98,10 +96,10 @@ public class SecondFragment extends Fragment {
             addResultEntry(inflater, thisUser);
         }
 
-        usbProber = new UsbProber((MainActivity) this.getActivity());
+/*        usbProber = new UsbProber((MainActivity) this.getActivity());
         usbProber.setHandler(MainActivity.getUIHandler());
         TextView infoTextWidget = binding.textviewFirst;
-        usbProber.setCallback(new UsbProberCallback() {
+        usbProber.setCallback(new StatusUpdateCallback() {
             @Override
             public void OnInfoFound(String infoString) {
                 infoTextWidget.setText(infoString);
@@ -113,9 +111,9 @@ public class SecondFragment extends Fragment {
                 infoTextWidget.setText(errorString);
                 infoTextWidget.setError(errorString);
             }
-        });
+        });*/
 
-        siReaderThread = new SiReaderThread(usbProber);
+        siReaderThread = new SiReaderThread((MainActivity) this.getActivity());
         siReaderThread.setHandler(MainActivity.getUIHandler());
         siReaderThread.setSiResultHandler(new SiResultHandler() {
             @Override
@@ -123,6 +121,21 @@ public class SecondFragment extends Fragment {
                 UserInfo userInfo = new UserInfo(result);
                 actualResults.add(userInfo);
                 addNewResultEntry(inflater, userInfo);
+            }
+        });
+
+        TextView infoTextWidget = binding.textviewFirst;
+        siReaderThread.setStatusUpdateCallback(new StatusUpdateCallback() {
+            @Override
+            public void OnInfoFound(String infoString) {
+                infoTextWidget.setText(infoString);
+                infoTextWidget.setError(null);
+            }
+
+            @Override
+            public void OnErrorEncountered(String errorString) {
+                infoTextWidget.setText(errorString);
+                infoTextWidget.setError(errorString);
             }
         });
 
@@ -139,66 +152,12 @@ public class SecondFragment extends Fragment {
         addResultEntry(inflater, userInfo);
 
         // Now check to see what actions to kick off - registration or download
-        if (!userInfo.getStickInfo().isClearedStick()) {
-            // Download
-            UrlCaller uploadCaller = new UrlCaller(settingsUrl, accessKey, siteTimeout);
-            UploadResults resultUploader = new UploadResults(uploadCaller, eventId, userInfo);
-            resultUploader.setHandler(MainActivity.getUIHandler());
-            resultUploader.setCallback(t -> {
-                boolean performStickLookup = false;
-                UrlCallResults results = resultUploader.getUrlCallResults();
-                if (results.isSuccess()) {
-                    DownloadResults resultDetails = resultUploader.getResultDetails();
-                    userInfo.setDownloadResults(resultDetails);
-                    userInfo.setRegistrationResults(null);
-                    displayDownloadResults(userInfo);
-                } else if (results.isConnectivityFailure()) {
-                    userInfo.getStatusWidget().stickMemberName.setText("Connectivity failure - retry later");
-                    userInfo.getStatusWidget().stickMemberName.setError("No response from web site, retry later");
-                } else { // other error
-                    userInfo.getStatusWidget().stickMemberName.setText("Unknown failure - retry later");
-                }
-
-                // If the download didn't find a registered person, try looking them up as a member
-                if (userInfo.getMemberName() == null) {
-                    UrlCaller lookupCaller = new UrlCaller(settingsUrl, accessKey, siteTimeout);
-                    LookupSiUnit lookupHandler = new LookupSiUnit(lookupCaller, eventId, ((MainActivity) getActivity()).checkPreregistrationList(), userInfo);
-                    lookupHandler.setHandler(MainActivity.getUIHandler());
-                    lookupHandler.setCallback(l -> {
-                        UrlCallResults lookupResults = lookupHandler.getUrlCallResults();
-                        if (lookupResults.isSuccess()) {
-                            handleLookupResults(userInfo);
-                        } else if (lookupResults.isConnectivityFailure()) {
-                            userInfo.getStatusWidget().stickMemberName.setText("Connectivity failure - retry later");
-                            userInfo.getStatusWidget().stickMemberName.setError("No response from web site, retry later");
-                        } else { // other error
-                            userInfo.getStatusWidget().stickMemberName.setText("Unknown failure - retry later");
-                            userInfo.getStatusWidget().stickMemberName.setError("Unknown failure - retry later");
-                        }
-                    });
-
-                    MainActivity.submitBackgroundTask(lookupHandler);
-                }
-            });
-
-            MainActivity.submitBackgroundTask(resultUploader);
+        if (userInfo.getStickInfo().isClearedStick()) {
+            lookupMember(userInfo);
         }
         else {
-            UrlCaller lookupCaller = new UrlCaller(settingsUrl, accessKey, siteTimeout);
-            LookupSiUnit lookupHandler = new LookupSiUnit(lookupCaller, eventId, ((MainActivity) getActivity()).checkPreregistrationList(), userInfo);
-            lookupHandler.setHandler(MainActivity.getUIHandler());
-            lookupHandler.setCallback(t -> {
-                UrlCallResults results = lookupHandler.getUrlCallResults();
-                if (results.isSuccess()) {
-                    handleLookupResults(userInfo);
-                } else if (results.isConnectivityFailure()) {
-                    userInfo.getStatusWidget().stickMemberName.setText("Connectivity failure - retry later");
-                } else { // other error
-                    userInfo.getStatusWidget().stickMemberName.setText("Unknown failure - retry later");
-                }
-            });
-
-            MainActivity.submitBackgroundTask(lookupHandler);
+            // Download
+            downloadSiResults(userInfo,true);
         }
     }
     private void addResultEntry(LayoutInflater inflater, UserInfo userInfo) {
@@ -279,25 +238,7 @@ public class SecondFragment extends Fragment {
                 userInfo.setMemberName(stickEntryBinding.registerNameField.getText().toString());
                 userInfo.setCellPhone(stickEntryBinding.emergencyContact.getText().toString());
 
-                UrlCaller registerCaller = new UrlCaller(settingsUrl, accessKey, siteTimeout);
-                RegisterForCourse registrationHandler = new RegisterForCourse(registerCaller, eventId, courseToRun, userInfo);
-                registrationHandler.setHandler(MainActivity.getUIHandler());
-
-                registrationHandler.setCallback(t -> {
-                    UrlCallResults results = registrationHandler.getUrlCallResults();
-                    if (results.isSuccess()) {
-                        RegistrationResults regResults = registrationHandler.getRegistrationResults();
-                        userInfo.setRegistrationResults(regResults);
-                        userInfo.setDownloadResults(null);
-                        displayRegistrationResults(userInfo);
-                    } else if (results.isConnectivityFailure()) {
-                        userInfo.getStatusWidget().stickMemberName.setText("Connectivity failure - retry later");
-                    } else { // other error
-                        userInfo.getStatusWidget().stickMemberName.setText("Unknown failure - retry later");
-                    }
-                });
-
-                MainActivity.submitBackgroundTask(registrationHandler);
+                registerForCourse(userInfo, courseToRun);
 
                 stickEntryBinding.stickNavigationLayout.setVisibility(View.VISIBLE);
                 stickEntryBinding.registerLayout.setVisibility(View.GONE);
@@ -310,28 +251,9 @@ public class SecondFragment extends Fragment {
             stickEntryBinding.downloadButton.setVisibility(View.GONE);
         }
         stickEntryBinding.downloadButton.setOnClickListener(v -> {
-            UrlCaller uploadCaller = new UrlCaller(settingsUrl, accessKey, siteTimeout);
-            UploadResults resultUploader = new UploadResults(uploadCaller, eventId, userInfo);
-            resultUploader.setHandler(MainActivity.getUIHandler());
-            resultUploader.setCallback(t -> {
-                UrlCallResults results = resultUploader.getUrlCallResults();
-                if (results.isSuccess()) {
-                    DownloadResults resultDetails = resultUploader.getResultDetails();
-                    userInfo.setRegistrationResults(null);  // this is obsolete now that we have a successful download
-                    userInfo.setDownloadResults(resultDetails);
-                    displayDownloadResults(userInfo);
-                } else if (results.isConnectivityFailure()) {
-                    userInfo.getStatusWidget().stickMemberName.setText("Connectivity failure - retry later");
-                } else { // other error
-                    userInfo.getStatusWidget().stickMemberName.setText("Unknown failure - retry later");
-                }
-            });
-
-            MainActivity.submitBackgroundTask(resultUploader);
-
+                downloadSiResults(userInfo, false);
         });
 
-        userInfo.setStatusWidget(stickEntryBinding);
 
         // Look at the current state to decide what should be visible
         if ((userInfo.getMemberName() != null) && userInfo.getStickInfo().isClearedStick()) {
@@ -383,6 +305,72 @@ public class SecondFragment extends Fragment {
         }
     }
 
+    private void lookupMember(UserInfo userInfo) {
+        UrlCaller lookupCaller = new UrlCaller(settingsUrl, accessKey, siteTimeout);
+        LookupSiUnit lookupHandler = new LookupSiUnit(lookupCaller, eventId, ((MainActivity) getActivity()).checkPreregistrationList(), userInfo);
+        lookupHandler.setHandler(MainActivity.getUIHandler());
+        lookupHandler.setCallback(t -> {
+            UrlCallResults results = lookupHandler.getUrlCallResults();
+            if (results.isSuccess()) {
+                handleLookupResults(userInfo);
+            } else if (results.isConnectivityFailure()) {
+                showTextWithError(userInfo.getStatusWidget().stickMemberName, "Connectivity failure - retry later");
+            } else { // other error
+                showTextWithError(userInfo.getStatusWidget().stickMemberName, "Unknown failure - retry later");
+            }
+        });
+
+        MainActivity.submitBackgroundTask(lookupHandler);
+    }
+
+    private void downloadSiResults(UserInfo userInfo, boolean lookForMemberIfNoCompetitorFound) {
+        UrlCaller uploadCaller = new UrlCaller(settingsUrl, accessKey, siteTimeout);
+        UploadResults resultUploader = new UploadResults(uploadCaller, eventId, userInfo);
+        resultUploader.setHandler(MainActivity.getUIHandler());
+        resultUploader.setCallback(t -> {
+            UrlCallResults results = resultUploader.getUrlCallResults();
+            if (results.isSuccess()) {
+                DownloadResults resultDetails = resultUploader.getResultDetails();
+                userInfo.setDownloadResults(resultDetails);
+                userInfo.setRegistrationResults(null);
+                displayDownloadResults(userInfo);
+            } else if (results.isConnectivityFailure()) {
+                showTextWithError(userInfo.getStatusWidget().stickMemberName, "Connectivity failure - retry later");
+            } else { // other error
+                showTextWithError(userInfo.getStatusWidget().stickMemberName, "Unknown failure - retry later");
+            }
+
+            // If the download didn't find a registered person, try looking them up as a member
+            if ((userInfo.getMemberName() == null) && lookForMemberIfNoCompetitorFound) {
+                lookupMember(userInfo);
+            }
+        });
+
+        MainActivity.submitBackgroundTask(resultUploader);
+    }
+
+    private void registerForCourse(UserInfo userInfo, String courseToRun) {
+        UrlCaller registerCaller = new UrlCaller(settingsUrl, accessKey, siteTimeout);
+        RegisterForCourse registrationHandler = new RegisterForCourse(registerCaller, eventId, courseToRun, userInfo);
+        registrationHandler.setHandler(MainActivity.getUIHandler());
+
+        registrationHandler.setCallback(t -> {
+            UrlCallResults results = registrationHandler.getUrlCallResults();
+            if (results.isSuccess()) {
+                RegistrationResults regResults = registrationHandler.getRegistrationResults();
+                userInfo.setRegistrationResults(regResults);
+                userInfo.setDownloadResults(null);
+                displayRegistrationResults(userInfo);
+            } else if (results.isConnectivityFailure()) {
+                userInfo.getStatusWidget().stickMemberName.setText("Connectivity failure - retry later");
+            } else { // other error
+                userInfo.getStatusWidget().stickMemberName.setText("Unknown failure - retry later");
+            }
+        });
+
+        MainActivity.submitBackgroundTask(registrationHandler);
+    }
+
     private void handleLookupResults(UserInfo userInfo) {
         if (userInfo.getMemberName() != null) {
             userInfo.getStatusWidget().stickMemberName.setText(userInfo.getMemberName());
@@ -425,7 +413,6 @@ public class SecondFragment extends Fragment {
     @Override
     public void onDestroyView() {
         siReaderThread.stopThread();
-        usbProber.stopRunning();
         super.onDestroyView();
         binding = null;
     }

@@ -2,7 +2,7 @@ package com.example.playgroundtwo.SI;
 
 import android.util.Log;
 
-import com.example.playgroundtwo.usbhandler.UsbProber;
+import com.example.playgroundtwo.util.LogUtil;
 import com.hoho.android.usbserial.driver.UsbSerialPort;
 
 import java.io.IOException;
@@ -49,9 +49,6 @@ public class SIReader {
         public Info deviceInfo;
     }
 
-    // logging tag
-    private static final String MY_LOG_ID = UsbProber.myLogId;
-
     private UsbSerialPort serialPort;
 
     private SIProtocol siStationIoHandler;
@@ -92,7 +89,7 @@ public class SIReader {
         return siStationIoHandler;
     }
 
-    public boolean waitForCardInsert(int timeout, SiCardInfo cardInfo, UsbProber callback) throws SiStationDisconnectedException
+    public boolean waitForCardInsert(int timeout, SiCardInfo cardInfo, SIStationStatusUpdateCallback callback) throws SiStationDisconnectedException
     {
         if (siStationIoHandler == null) {
             return false;
@@ -109,7 +106,7 @@ public class SIReader {
                         cardInfo.cardId += (highByte * 100000);
                     }
                     cardInfo.format = reply[1];
-                    Log.d(MY_LOG_ID, "Got card inserted event (CardID: " + cardInfo.cardId + ")");
+                    Log.d(LogUtil.myLogId, "Got card inserted event (CardID: " + cardInfo.cardId + ")");
 //                    callback.updateStatus("Got SI 5 card inserted event (CardID: " + cardInfo.cardId + ")");
                     return true;
 
@@ -117,7 +114,7 @@ public class SIReader {
                 case (byte) 0xe8:
                     cardInfo.cardId = (byteToUnsignedInt(reply[6]) << 16) + (byteToUnsignedInt(reply[7]) << 8) + byteToUnsignedInt(reply[8]);
                     cardInfo.format = reply[1];
-                    Log.d(MY_LOG_ID, "Got card inserted event (CardID: " + cardInfo.cardId + ")");
+                    Log.d(LogUtil.myLogId, "Got card inserted event (CardID: " + cardInfo.cardId + ")");
                     //callback.updateStatus("Got card inserted event (CardID: " + cardInfo.cardId + ")");
                     return true;
                 case (byte) 0xe7:
@@ -129,12 +126,12 @@ public class SIReader {
                     else if (upperByte > 5) {
                         tmpCardId += upperByte << 16;
                     }
-                    Log.d(MY_LOG_ID, "Got card removed event (CardID: " + tmpCardId + ")");
+                    Log.d(LogUtil.myLogId, "Got card removed event (CardID: " + tmpCardId + ")");
                     //callback.updateStatus("Got card removed event (CardID: " + tmpCardId + ")");
                     break;
                 default:
                     int unknownByte = byteToUnsignedInt(reply[1]);
-                    Log.d(MY_LOG_ID, String.format("Got unknown command (%d, 0x%x) waiting for card inserted event", unknownByte, unknownByte));
+                    Log.d(LogUtil.myLogId, String.format("Got unknown command (%d, 0x%x) waiting for card inserted event", unknownByte, unknownByte));
                     //callback.updateStatus("Got unknown command waiting for card inserted event");
                     break;
             }
@@ -157,19 +154,19 @@ public class SIReader {
         }
     }
 
-    public boolean probeDevice(UsbProber callback) throws SiStationDisconnectedException
+    public boolean probeDevice(SIStationStatusUpdateCallback statusCallback) throws SiStationDisconnectedException
     {
 
         boolean ret = false;
         byte[] msg;
         byte[] reply;
 
-        siStationIoHandler = new SIProtocol(serialPort, callback);
+        siStationIoHandler = new SIProtocol(serialPort, statusCallback);
 
         // Start with determine baudrate
         if (!setBaudRate(38400)){
             //callback.updateStatus("Failed to set baudRate to 38400");
-            Log.d(MY_LOG_ID, "Failed to set baudRate to 38400");
+            Log.d(LogUtil.myLogId, "Failed to set baudRate to 38400");
             return false;
         }
 
@@ -181,10 +178,10 @@ public class SIReader {
         //callback.updateStatus(String.format("First read returned, %d bytes read", (reply != null) ? reply.length : -1));
         if (reply == null || reply.length == 0) {
            // callback.updateStatus("First reply was empty");
-            Log.d(MY_LOG_ID, "No response on high baudrate mode, trying low baudrate");
+            Log.d(LogUtil.myLogId, "No response on high baudrate mode, trying low baudrate");
             if (!setBaudRate(4800)) {
                 //callback.updateStatus("Failed to set baudrate to 4800");
-                Log.d(MY_LOG_ID, "Failed to set baudRate to 4800");
+                Log.d(LogUtil.myLogId, "Failed to set baudRate to 4800");
                 return false;
             }
         }
@@ -193,14 +190,14 @@ public class SIReader {
         reply = siStationIoHandler.readMsg(1000, (byte)0xf0);
         //callback.updateStatus(String.format("Second read returned, %d bytes read", (reply != null) ? reply.length : -1));
         if (reply != null && reply.length > 0) {
-            Log.d(MY_LOG_ID, "Unit responded, reading device info");
+            Log.d(LogUtil.myLogId, "Unit responded, reading device info");
             //callback.updateStatus("Unit responded, reading device info");
             msg = new byte[]{0x00, 0x75};
             siStationIoHandler.writeMsg((byte) 0x83, msg, true);
             reply = siStationIoHandler.readMsg(6000, (byte) 0x83);
 
             if (reply != null && reply.length >= 124) {
-                Log.d(MY_LOG_ID, "Got device info response");
+                Log.d(LogUtil.myLogId, "Got device info response");
                 //callback.updateStatus("Got device info response");
                 deviceInfo = new Info();
                 deviceInfo.codeNo = (byteToUnsignedInt(reply[3]) << 8) + byteToUnsignedInt(reply[4]);
@@ -209,7 +206,7 @@ public class SIReader {
                 deviceInfo.serialNo = (byteToUnsignedInt(reply[6]) << 24) + (byteToUnsignedInt(reply[7]) << 16) + (byteToUnsignedInt(reply[8]) << 8) + byteToUnsignedInt(reply[9]);
                 ret = true;
             } else {
-                Log.d(MY_LOG_ID, "Invalid device info response, trying short info");
+                Log.d(LogUtil.myLogId, "Invalid device info response, trying short info");
                 //callback.updateStatus("Invalid device info response, trying short info");
 
                 msg = new byte[]{0x00, 0x07};
@@ -217,7 +214,7 @@ public class SIReader {
                 reply = siStationIoHandler.readMsg(6000, (byte)0x83);
 
                 if (reply != null && reply.length >= 10) {
-                    Log.d(MY_LOG_ID, "Got device info response");
+                    Log.d(LogUtil.myLogId, "Got device info response");
                    // callback.updateStatus("Got device info the short way");
                     deviceInfo = new Info();
                     deviceInfo.codeNo = (byteToUnsignedInt(reply[3]) << 8) + byteToUnsignedInt(reply[4]);
