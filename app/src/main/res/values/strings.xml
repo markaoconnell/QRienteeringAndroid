@@ -13,13 +13,14 @@
     <string name="default_mode">Download mode</string>
 
     <!-- Strings used for fragments for navigation -->
-    <string name="first_fragment_label">QRienteering Event Chooser</string>
-    <string name="second_fragment_label">QRienteering Event Manager</string>
+    <string name="event_chooser_fragment_label">QRienteering Event Chooser</string>
+    <string name="results_fragment_label">QRienteering Event Manager</string>
+    <string name="mass_start_fragment_label">QRienteering Mass Start Courses</string>
     <string name="next">Next</string>
     <string name="previous">Previous</string>
 
-    <string name="hello_first_fragment">Hello first fragment</string>
-    <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
+    <string name="event_chooser_fragment_info">Event Chooser</string>
+    <string name="results_fragment_info">Event Management Page</string>
     <string name="start_up">Initializing</string>
 
 
@@ -49,7 +50,20 @@
     <string name="run_chosen_event">Use chosen event</string>
     <string name="set_url_and_key_error">URL and access key must be set before using this app</string>
 
+
+    <!-- In the results fragment, to go to Mass Start -->
+    <string name="results_mass_start_button_label">Mass Start</string>
+
     <!-- For log file management -->
     <string name="show_logs">Show log files</string>
     <string name="email_logs">Email chosen log(s)</string>
+<!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+
+    <!-- For the mass start fragment -->
+    <string name="mass_start_label">Mass Start Courses</string>
+    <string name="mass_start_await_si_time">Awaiting SI unit insertion with starting timestamp</string>
+    <string name="mass_start_use_current_time">Use current time</string>
+    <string name="mass_start_choices">Course(s) for a mass start</string>
+    <string name="mass_start_button_label">Mass start</string>
 </resources>

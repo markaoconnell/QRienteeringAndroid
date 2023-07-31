@@ -1,16 +1,5 @@
 package com.example.playgroundtwo;
 
-import android.app.PendingIntent;
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
-import android.hardware.usb.UsbConstants;
-import android.hardware.usb.UsbDevice;
-import android.hardware.usb.UsbDeviceConnection;
-import android.hardware.usb.UsbEndpoint;
-import android.hardware.usb.UsbInterface;
-import android.hardware.usb.UsbManager;
 import android.os.Bundle;
 
 import com.google.android.material.snackbar.Snackbar;
@@ -19,12 +8,10 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import android.os.Handler;
 import android.os.Looper;
-import android.util.Log;
 import android.view.View;
 
 import androidx.core.os.HandlerCompat;
 import androidx.navigation.NavController;
-import androidx.navigation.NavDestination;
 import androidx.navigation.Navigation;
 import androidx.navigation.ui.AppBarConfiguration;
 import androidx.navigation.ui.NavigationUI;
@@ -34,9 +21,6 @@ import com.example.playgroundtwo.databinding.ActivityMainBinding;
 import android.view.Menu;
 import android.view.MenuItem;
 
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -98,22 +82,16 @@ public class MainActivity extends AppCompatActivity {
             NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
             int currentFragId = navController.getCurrentDestination().getId();
 
-            if (currentFragId == R.id.FirstFragment) {
-                navController.navigate(R.id.action_FirstFragment_to_settingsFragment);
+            if (currentFragId == R.id.EventChooserFragment) {
+                navController.navigate(R.id.action_EventChooserFragment_to_settingsFragment);
             }
-            else if (currentFragId == R.id.SecondFragment) {
-                navController.navigate(R.id.action_SecondFragment_to_settingsFragment);
+            else if (currentFragId == R.id.ResultsFragment) {
+                navController.navigate(R.id.action_ResultsFragment_to_settingsFragment);
+            }
+            else if (currentFragId == R.id.massStartFragment) {
+                navController.navigate(R.id.action_massStartFragment_to_settingsFragment);
             }
             return true;
-        }
-        else if (id == R.id.action_enter_register_mode) {
-            binding.textModeArea.setText(R.string.action_register_mode);
-        }
-        else if (id == R.id.action_enter_download_mode) {
-            binding.textModeArea.setText(R.string.action_download_mode);
-        }
-        else if (id == R.id.action_enter_mass_start_mode) {
-            binding.textModeArea.setText(R.string.action_mass_start_mode);
         }
 
         return super.onOptionsItemSelected(item);

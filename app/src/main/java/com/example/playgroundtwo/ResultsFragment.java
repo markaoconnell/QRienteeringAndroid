@@ -13,13 +13,14 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
+import androidx.navigation.fragment.NavHostFragment;
 import androidx.preference.PreferenceManager;
 
 import com.example.playgroundtwo.QRienteeringCalls.GetCourseList;
 import com.example.playgroundtwo.QRienteeringCalls.LookupSiUnit;
 import com.example.playgroundtwo.QRienteeringCalls.RegisterForCourse;
 import com.example.playgroundtwo.QRienteeringCalls.UploadResults;
-import com.example.playgroundtwo.databinding.FragmentSecondBinding;
+import com.example.playgroundtwo.databinding.ResultsFragmentBinding;
 import com.example.playgroundtwo.databinding.StickEntryBinding;
 import com.example.playgroundtwo.resultlogging.EventResultLogger;
 import com.example.playgroundtwo.sireader.SiReaderThread;
@@ -36,9 +37,9 @@ import com.example.playgroundtwo.util.LogUtil;
 import java.util.ArrayList;
 import java.util.List;
 
-public class SecondFragment extends Fragment {
+public class ResultsFragment extends Fragment {
 
-    private FragmentSecondBinding binding;
+    private ResultsFragmentBinding binding;
     private String eventId;
     private String accessKey;
     private String settingsUrl;
@@ -62,7 +63,7 @@ public class SecondFragment extends Fragment {
             Bundle savedInstanceState
     ) {
 
-        binding = FragmentSecondBinding.inflate(inflater, container, false);
+        binding = ResultsFragmentBinding.inflate(inflater, container, false);
 
         sharedPreferences =
                 PreferenceManager.getDefaultSharedPreferences(this.getActivity() /* Activity context */);
@@ -80,6 +81,8 @@ public class SecondFragment extends Fragment {
         }
 
         TextView infoTextWidget = binding.textviewFirst;
+
+
 
         eventId = ((MainActivity) getActivity()).getEventId();
         accessKey = ((MainActivity) getActivity()).getKeyForEvent();
@@ -210,7 +213,7 @@ public class SecondFragment extends Fragment {
         }
 
         if (courseList.size() > 0) {
-            ArrayAdapter<String> courseChoices = new ArrayAdapter<>(SecondFragment.this.getContext(), androidx.appcompat.R.layout.support_simple_spinner_dropdown_item, courseNames);
+            ArrayAdapter<String> courseChoices = new ArrayAdapter<>(ResultsFragment.this.getContext(), androidx.appcompat.R.layout.support_simple_spinner_dropdown_item, courseNames);
             stickEntryBinding.courseChoiceSpinner.setAdapter(courseChoices);
         }
 
@@ -218,7 +221,7 @@ public class SecondFragment extends Fragment {
             @Override
             public void onClick(View view) {
                 if ((stickEntryBinding.courseChoiceSpinner.getCount() == 0) && (courseList.size() > 0)) {
-                    ArrayAdapter<String> courseChoices = new ArrayAdapter<>(SecondFragment.this.getContext(), androidx.appcompat.R.layout.support_simple_spinner_dropdown_item, courseNames);
+                    ArrayAdapter<String> courseChoices = new ArrayAdapter<>(ResultsFragment.this.getContext(), androidx.appcompat.R.layout.support_simple_spinner_dropdown_item, courseNames);
                     stickEntryBinding.courseChoiceSpinner.setAdapter(courseChoices);
                 }
                 if (userInfo.getPreregisteredCourse() != null) {
@@ -422,14 +425,14 @@ public class SecondFragment extends Fragment {
 
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        /*
-        binding.buttonSecond.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                NavHostFragment.findNavController(SecondFragment.this)
-                        .navigate(R.id.action_SecondFragment_to_FirstFragment);
-            }
-        }); */
+            binding.resultsMassStartButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    NavHostFragment.findNavController(ResultsFragment.this)
+                            .navigate(R.id.action_ResultsFragment_to_massStartFragment);
+                }
+            });
+
     }
 
     @Override

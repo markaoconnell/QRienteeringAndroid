@@ -15,7 +15,7 @@ import androidx.fragment.app.Fragment;
 import androidx.navigation.fragment.NavHostFragment;
 import androidx.preference.PreferenceManager;
 
-import com.example.playgroundtwo.databinding.FragmentFirstBinding;
+import com.example.playgroundtwo.databinding.EventChooserFragmentBinding;
 import com.example.playgroundtwo.QRienteeringCalls.GetEventList;
 import com.example.playgroundtwo.resultlogging.LogFileRetriever;
 import com.example.playgroundtwo.url.UrlCallResults;
@@ -24,9 +24,9 @@ import com.example.playgroundtwo.url.UrlCaller;
 import java.util.List;
 
 
-public class FirstFragment extends Fragment {
+public class EventChooserFragment extends Fragment {
 
-    private FragmentFirstBinding binding;
+    private EventChooserFragmentBinding binding;
     private UrlCaller urlCaller;
     private String xlatedKey;
 
@@ -37,7 +37,7 @@ public class FirstFragment extends Fragment {
             LayoutInflater inflater, ViewGroup container,
             Bundle savedInstanceState
     ) {
-        binding = FragmentFirstBinding.inflate(inflater, container, false);
+        binding = EventChooserFragmentBinding.inflate(inflater, container, false);
 
         SharedPreferences sharedPreferences =
                 PreferenceManager.getDefaultSharedPreferences(this.getActivity() /* Activity context */);
@@ -134,8 +134,8 @@ public class FirstFragment extends Fragment {
         binding.buttonFirst.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                NavHostFragment.findNavController(FirstFragment.this)
-                        .navigate(R.id.action_FirstFragment_to_SecondFragment);
+                NavHostFragment.findNavController(EventChooserFragment.this)
+                        .navigate(R.id.action_EventChooserFragment_to_ResultsFragment);
             }
         });
 
@@ -188,8 +188,8 @@ public class FirstFragment extends Fragment {
     private void useSelectedCourse(Pair<String, String> chosenEvent, boolean eventAllowsPreregistration) {
         ((MainActivity) getActivity()).setEventName(chosenEvent.second);
         ((MainActivity) getActivity()).setEventAndKey(chosenEvent.first, xlatedKey, eventAllowsPreregistration);
-        NavHostFragment.findNavController(FirstFragment.this)
-                .navigate(R.id.action_FirstFragment_to_SecondFragment);
+        NavHostFragment.findNavController(EventChooserFragment.this)
+                .navigate(R.id.action_EventChooserFragment_to_ResultsFragment);
     }
 
     private void sendLogFileInEmail(String logFilename) {
