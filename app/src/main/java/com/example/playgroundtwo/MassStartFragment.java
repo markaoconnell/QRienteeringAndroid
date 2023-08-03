@@ -6,6 +6,7 @@ import android.os.Bundle;
 import androidx.fragment.app.Fragment;
 import androidx.preference.PreferenceManager;
 
+import android.util.Log;
 import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -24,6 +25,7 @@ import com.example.playgroundtwo.sireader.StatusUpdateCallback;
 import com.example.playgroundtwo.url.UrlCallResults;
 import com.example.playgroundtwo.url.UrlCaller;
 import com.example.playgroundtwo.userinfo.UserInfo;
+import com.example.playgroundtwo.util.LogUtil;
 
 import java.util.ArrayList;
 import java.util.List;

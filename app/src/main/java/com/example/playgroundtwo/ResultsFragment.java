@@ -425,13 +425,13 @@ public class ResultsFragment extends Fragment {
 
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-            binding.resultsMassStartButton.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    NavHostFragment.findNavController(ResultsFragment.this)
-                            .navigate(R.id.action_ResultsFragment_to_massStartFragment);
-                }
-            });
+        binding.resultsMassStartButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                NavHostFragment.findNavController(ResultsFragment.this)
+                        .navigate(R.id.action_ResultsFragment_to_massStartFragment);
+            }
+        });
 
     }
 

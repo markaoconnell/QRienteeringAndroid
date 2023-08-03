@@ -223,7 +223,13 @@ public class SIReader {
                     deviceInfo.serialNo = (byteToUnsignedInt(reply[6]) << 24) + (byteToUnsignedInt(reply[7]) << 16) + (byteToUnsignedInt(reply[8]) << 8) + byteToUnsignedInt(reply[9]);
                     ret = true;
                 }
+                else {
+                    Log.d(LogUtil.myLogId, "No short info response received, failing open.");
+                }
             }
+        }
+        else {
+            Log.d(LogUtil.myLogId, "No device info response received, failing open.");
         }
 
         if (!ret) {

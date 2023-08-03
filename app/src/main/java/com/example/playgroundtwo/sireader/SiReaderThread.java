@@ -4,12 +4,14 @@ import android.content.Context;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
 import android.os.Handler;
+import android.util.Log;
 import android.util.Pair;
 
 import com.example.playgroundtwo.MainActivity;
 import com.example.playgroundtwo.SI.CardReader;
 import com.example.playgroundtwo.SI.SIReader;
 import com.example.playgroundtwo.SI.SiStationDisconnectedException;
+import com.example.playgroundtwo.util.LogUtil;
 import com.hoho.android.usbserial.driver.Cp21xxSerialDriver;
 import com.hoho.android.usbserial.driver.ProbeTable;
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
@@ -30,6 +32,11 @@ public class SiReaderThread extends Thread {
     private MainActivity mainActivity;
     private boolean runSimulationIfNoSiReader;
     private boolean reportVerboseSiResults;
+
+    private static volatile Thread runningThread;
+    private static final int MAX_NUM_THREAD_WAITS = 5;
+    private static final int MAX_PROBES = 5;
+    private static final int ONE_DAY_IN_SECONDS = 24 * 60 * 60;
 
     private StatusUpdateCallback statusUpdateCallback;
 
@@ -95,9 +102,44 @@ public class SiReaderThread extends Thread {
             processReadStick(result);
         });*/
 
+        int numWaits = 0;
+        while ((runningThread != null) && (runningThread != this)) {
+            try {
+                if (runningThread.isAlive()) {
+                    Log.i(LogUtil.myLogId, "Detected live thread: " + runningThread + ", waiting for it to exit");
+                    if (numWaits > MAX_NUM_THREAD_WAITS) {
+                        notifyStatusUpdate("Waited too long for SI reader thread to exit: " + numWaits + " waits.", true);
+                        Log.d(LogUtil.myLogId, "Waited too long for SI reader thread to exit: " + numWaits + " waits.");
+                        return;
+                    }
+                    numWaits++;
+                    runningThread.join(1000);
+                }
+            }
+            catch (Exception e) {
+                Log.d(LogUtil.myLogId, "Got exception waiting for SI reader thread to exit: " + e.getMessage());
+                notifyStatusUpdate("Concurrent threads running for SI Reader due to internal exception", true);
+                return;
+            }
+        }
+
+        if ((runningThread == this) || (runningThread == null) || !runningThread.isAlive()) {
+            Log.i(LogUtil.myLogId, "No alive thread detected, setting live thread to: " + this);
+            runningThread = this;
+        } else {
+            Log.d(LogUtil.myLogId, "Done waiting but running Thread: " + runningThread + " is still alive!");
+            notifyStatusUpdate("Concurrent threads running for SI Reader", true);
+            return;
+        }
+
         readSiCards();
         if (!stopRunning && runSimulationIfNoSiReader) {
             simulationRun();
+        }
+
+        if (runningThread == this) {
+            Log.i(LogUtil.myLogId, "Thread " + this + " exiting, clearing runningThread");
+            runningThread = null;
         }
     }
 
@@ -150,7 +192,22 @@ public class SiReaderThread extends Thread {
 
         SIReader reader = new SIReader(port);
         try {
-            if (reader.probeDevice((m, e) -> notifyStatusUpdate(m, e))) {
+            boolean probeSucceeded = false;
+            for (int probeTries = 0; probeTries < MAX_PROBES; probeTries++) {
+                if (reader.probeDevice((m, e) -> notifyStatusUpdate(m, e))) {
+                    probeSucceeded = true;
+                    break;
+                }
+                try {
+                    Log.i(LogUtil.myLogId, "Probe of SI reader failed, try #: " + (probeTries + 1) + ", sending ack and trying again soon.");
+                    reader.sendAck();  // reset the device and retry
+                    Thread.sleep(500);
+                }
+                catch (Exception e) {
+                    // do nothing
+                }
+            }
+            if (probeSucceeded) {
                 notifyStatusUpdate("Waiting for card insert", false);
                 CardReader cardReader = new CardReader(reader, (m, e) -> notifyStatusUpdate(m, e));
                 CardReader.CardEntry siCard = null;
@@ -165,8 +222,11 @@ public class SiReaderThread extends Thread {
                             reader.sendAck();
                         } else {
                             List<Pair<Integer, Integer>> myPunches;
-                            myPunches = siCard.punches.stream().map(p -> new Pair<Integer, Integer> (p.getCode(), (int) p.getTime() / 1000)).collect(Collectors.toList());
-                            SiStickResult result = new SiStickResult((int) siCard.cardId, (int) siCard.startTime / 1000, (int) siCard.finishTime / 1000, myPunches);
+                            myPunches = siCard.punches.stream().map(p -> new Pair<Integer, Integer> (p.getCode(), ((int) p.getTime() / 1000) % ONE_DAY_IN_SECONDS)).collect(Collectors.toList());
+                            SiStickResult result = new SiStickResult((int) siCard.cardId,
+                                    ((int) siCard.startTime / 1000) % ONE_DAY_IN_SECONDS,
+                                    ((int) siCard.finishTime / 1000) % ONE_DAY_IN_SECONDS,
+                                    myPunches);
                             processReadStick(result);
                             notifyStatusUpdate("Read card: " + siCard.cardId, false);
                             // String punchString = siCard.punches.stream().map(punch -> (punch.getCode() + ":" + punch.getTime())).collect(Collectors.joining(","));
