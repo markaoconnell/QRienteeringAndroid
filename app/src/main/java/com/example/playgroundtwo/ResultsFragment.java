@@ -57,6 +57,8 @@ public class ResultsFragment extends Fragment {
 
     private EventResultLogger resultLogger;
 
+    private static final int SI_READER_START_RETRY_DELAY_MILLIS = 30 * 1000;  // 30 seconds
+
     @Override
     public View onCreateView(
             LayoutInflater inflater, ViewGroup container,
@@ -110,22 +112,6 @@ public class ResultsFragment extends Fragment {
             addResultEntry(inflater, thisUser);
         }
 
-/*        usbProber = new UsbProber((MainActivity) this.getActivity());
-        usbProber.setHandler(MainActivity.getUIHandler());
-        TextView infoTextWidget = binding.textviewFirst;
-        usbProber.setCallback(new StatusUpdateCallback() {
-            @Override
-            public void OnInfoFound(String infoString) {
-                infoTextWidget.setText(infoString);
-                infoTextWidget.setError(null);
-            }
-
-            @Override
-            public void OnErrorEncountered(String errorString) {
-                infoTextWidget.setText(errorString);
-                infoTextWidget.setError(errorString);
-            }
-        });*/
 
         // Try and open the interface to log the results - if this errors, just keep going
         resultLogger = new EventResultLogger(this.getContext(), eventId);
@@ -137,38 +123,26 @@ public class ResultsFragment extends Fragment {
             resultLogger = null;
         }
 
-        siReaderThread = new SiReaderThread((MainActivity) this.getActivity());
-        siReaderThread.setHandler(MainActivity.getUIHandler());
-        siReaderThread.setSiResultHandler(new SiResultHandler() {
-            @Override
-            public void processResult(SiStickResult result) {
-                UserInfo userInfo = new UserInfo(result);
-                if (resultLogger != null) {
-                    resultLogger.logResult(result.getStickSummaryString());
+        siReaderThread = ((MainActivity) this.getActivity()).getSiReaderThread(this);
+        if (siReaderThread != null) {
+            setupSiReader(siReaderThread, inflater);
+        }
+        else {
+            // Getting the reader failed - try again in a few seconds to give the old reader thread time to die
+            infoTextWidget.setText("Failed to start SIReader, retrying shortly");
+            MainActivity.getUIHandler().postDelayed(() -> {
+                siReaderThread = ((MainActivity) this.getActivity()).getSiReaderThread(this);
+                if (siReaderThread != null) {
+                    setupSiReader(siReaderThread, inflater);
                 }
-                actualResults.add(userInfo);
-                addNewResultEntry(inflater, userInfo);
-            }
-        });
+                else {
+                    Log.d(LogUtil.myLogId, "Failed to get SIReader for ResultsFragment " + this);
+                    infoTextWidget.setText("Cannot start SIReader, try exiting app and restarting");
+                    infoTextWidget.setError("This is an error");
+                }
+            }, SI_READER_START_RETRY_DELAY_MILLIS);
+        }
 
-        siReaderThread.setStatusUpdateCallback(new StatusUpdateCallback() {
-            @Override
-            public void OnInfoFound(String infoString) {
-                infoTextWidget.setText(infoString);
-                infoTextWidget.setError(null);
-            }
-
-            @Override
-            public void OnErrorEncountered(String errorString) {
-                infoTextWidget.setText(errorString);
-                infoTextWidget.setError(errorString);
-            }
-        });
-
-        siReaderThread.useSimulationMode(simulationModeEnabled);
-        siReaderThread.printVerboseSiResults(verboseSIUnitResults);
-
-        siReaderThread.start();
 
         return binding.getRoot();
 
@@ -435,12 +409,59 @@ public class ResultsFragment extends Fragment {
 
     }
 
+    private void setupSiReader(SiReaderThread thread, LayoutInflater inflater) {
+        Log.d(LogUtil.myLogId, "Setting up SIReaderThread " + thread + " for ResultsFragment " + this);
+        TextView infoTextWidget = binding.textviewFirst;
+
+        thread.setHandler(MainActivity.getUIHandler());
+        thread.setSiResultHandler(new SiResultHandler() {
+            @Override
+            public void processResult(SiStickResult result) {
+                UserInfo userInfo = new UserInfo(result);
+                if (resultLogger != null) {
+                    resultLogger.logResult(result.getStickSummaryString());
+                }
+                actualResults.add(userInfo);
+                addNewResultEntry(inflater, userInfo);
+            }
+        });
+
+        thread.setStatusUpdateCallback(new StatusUpdateCallback() {
+            @Override
+            public void OnInfoFound(String infoString) {
+                infoTextWidget.setText(infoString);
+                infoTextWidget.setError(null);
+            }
+
+            @Override
+            public void OnErrorEncountered(String errorString) {
+                infoTextWidget.setText(errorString);
+                infoTextWidget.setError(errorString);
+            }
+        });
+
+        thread.useSimulationMode(simulationModeEnabled);
+        thread.printVerboseSiResults(verboseSIUnitResults);
+
+        // This is hacky, reconsider where the thread should be started from
+        if (!thread.isAlive()) {
+            Log.d(LogUtil.myLogId, "Starting SIReaderThread " + thread + " for ResultsFragment " + this);
+            thread.start();
+        }
+    }
+
     @Override
     public void onDestroyView() {
-        siReaderThread.stopThread();
+        if (siReaderThread != null) {
+            ((MainActivity) this.getActivity()).releaseSIReaderThread(this);
+            siReaderThread = null;
+        }
+
         if (resultLogger != null) {
             resultLogger.closeLogger();
+            resultLogger = null;
         }
+
         super.onDestroyView();
         binding = null;
     }

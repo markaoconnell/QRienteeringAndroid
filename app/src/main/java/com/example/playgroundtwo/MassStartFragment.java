@@ -12,19 +12,16 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CheckBox;
-import android.widget.TextView;
 
 import com.example.playgroundtwo.QRienteeringCalls.GetCourseList;
 import com.example.playgroundtwo.QRienteeringCalls.MassStartCourses;
 import com.example.playgroundtwo.databinding.MassStartFragmentBinding;
-import com.example.playgroundtwo.databinding.ResultsFragmentBinding;
 import com.example.playgroundtwo.sireader.SiReaderThread;
 import com.example.playgroundtwo.sireader.SiResultHandler;
 import com.example.playgroundtwo.sireader.SiStickResult;
 import com.example.playgroundtwo.sireader.StatusUpdateCallback;
 import com.example.playgroundtwo.url.UrlCallResults;
 import com.example.playgroundtwo.url.UrlCaller;
-import com.example.playgroundtwo.userinfo.UserInfo;
 import com.example.playgroundtwo.util.LogUtil;
 
 import java.util.ArrayList;
@@ -54,6 +51,7 @@ public class MassStartFragment extends Fragment {
     private boolean awaitingStartTime;
 
     private int startTimeInSeconds = 0;
+    private static final int SI_READER_START_RETRY_DELAY_MILLIS = 30 * 1000;  // 30 seconds
 
 
     @Override
@@ -102,50 +100,26 @@ public class MassStartFragment extends Fragment {
 
 
         awaitingStartTime = true;
-        siReaderThread = new SiReaderThread((MainActivity) this.getActivity());
-        siReaderThread.setHandler(MainActivity.getUIHandler());
-        siReaderThread.setSiResultHandler(new SiResultHandler() {
-            @Override
-            public void processResult(SiStickResult result) {
-                if (awaitingStartTime) {
-                    if (result.getStartTime() != 0) {
-                        awaitingStartTime = false;
-
-                        startTimeInSeconds = result.getStartTime();
-                        int hours = (startTimeInSeconds / 3600);
-                        int minutes = (startTimeInSeconds % 3600) / 60;
-                        int seconds = startTimeInSeconds % 60;
-                        binding.massStartTimeChosenText.setText(String.format("Using start time of %02dh:%02dm:%02ds", hours, minutes, seconds));
-
-                        chooseCourses();
-                    }
-                    else {
-                        binding.massStartErrorText.setText(String.format("SI Unit (%d) has start time of zero, was it cleared?", result.getStickNumber()));
-                    }
+        siReaderThread = ((MainActivity) this.getActivity()).getSiReaderThread(this);
+        if (siReaderThread != null) {
+            setupSiReaderThread(siReaderThread);
+        }
+        else {
+            // Getting the reader failed - try again in a few seconds to give the old reader thread time to die
+            binding.massStartStatusText.setText("Failed to start SIReader, retrying shortly");
+            MainActivity.getUIHandler().postDelayed(() -> {
+                siReaderThread = ((MainActivity) this.getActivity()).getSiReaderThread(this);
+                if (siReaderThread != null) {
+                    setupSiReaderThread(siReaderThread);
                 }
                 else {
-                    // do nothing, more sticks should not be inserted
+                    Log.d(LogUtil.myLogId, "Failed to get SI Reader for MassStartFragment " + this);
+                    binding.massStartErrorText.setText("Cannot start SIReader, try exiting app and restarting");
+                    binding.massStartErrorText.setError("This is an error");
                 }
-            }
-        });
+            }, SI_READER_START_RETRY_DELAY_MILLIS);
+        }
 
-        siReaderThread.setStatusUpdateCallback(new StatusUpdateCallback() {
-            @Override
-            public void OnInfoFound(String infoString) {
-                binding.massStartStatusText.setText(infoString);
-            }
-
-            @Override
-            public void OnErrorEncountered(String errorString) {
-                binding.massStartErrorText.setText(errorString);
-                binding.massStartErrorText.setError(errorString);
-            }
-        });
-
-        siReaderThread.useSimulationMode(simulationModeEnabled);
-        siReaderThread.printVerboseSiResults(verboseSIUnitResults);
-
-        siReaderThread.start();
 
         return (binding.getRoot());
     }
@@ -232,9 +206,64 @@ public class MassStartFragment extends Fragment {
         MainActivity.submitBackgroundTask(massStarter);
     }
 
+    private void setupSiReaderThread(SiReaderThread thread) {
+        Log.d(LogUtil.myLogId, "Setting up SI Reader Thread " + thread + " for MassStartFragment " + this);
+        thread.setHandler(MainActivity.getUIHandler());
+        thread.setSiResultHandler(new SiResultHandler() {
+            @Override
+            public void processResult(SiStickResult result) {
+                if (awaitingStartTime) {
+                    if (result.getStartTime() != 0) {
+                        awaitingStartTime = false;
+
+                        startTimeInSeconds = result.getStartTime();
+                        int hours = (startTimeInSeconds / 3600);
+                        int minutes = (startTimeInSeconds % 3600) / 60;
+                        int seconds = startTimeInSeconds % 60;
+                        binding.massStartTimeChosenText.setText(String.format("Using start time of %02dh:%02dm:%02ds", hours, minutes, seconds));
+
+                        chooseCourses();
+                    }
+                    else {
+                        binding.massStartErrorText.setText(String.format("SI Unit (%d) has start time of zero, was it cleared?", result.getStickNumber()));
+                    }
+                }
+                else {
+                    // do nothing, more sticks should not be inserted
+                    binding.massStartErrorText.setText(String.format("Ignoring SI Unit insertion (%d), mass start time already established.", result.getStickNumber()));
+                }
+            }
+        });
+
+        thread.setStatusUpdateCallback(new StatusUpdateCallback() {
+            @Override
+            public void OnInfoFound(String infoString) {
+                binding.massStartStatusText.setText(infoString);
+            }
+
+            @Override
+            public void OnErrorEncountered(String errorString) {
+                binding.massStartErrorText.setText(errorString);
+                binding.massStartErrorText.setError(errorString);
+            }
+        });
+
+        thread.useSimulationMode(simulationModeEnabled);
+        thread.printVerboseSiResults(verboseSIUnitResults);
+
+        // This is hacky, reconsider where the thread should be started from
+        if (!thread.isAlive()) {
+            Log.d(LogUtil.myLogId, "Starting SI Reader Thread " + thread + " for MassStartFragment " + this);
+            thread.start();
+        }
+    }
+
     @Override
     public void onDestroyView() {
-        siReaderThread.stopThread();
+        if (siReaderThread != null) {
+            ((MainActivity) this.getActivity()).releaseSIReaderThread(this);
+            siReaderThread = null;
+        }
 
         super.onDestroyView();
         binding = null;

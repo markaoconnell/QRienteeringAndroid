@@ -33,10 +33,14 @@ public class SiReaderThread extends Thread {
     private boolean runSimulationIfNoSiReader;
     private boolean reportVerboseSiResults;
 
-    private static volatile Thread runningThread;
+    private static volatile SiReaderThread runningThread;
     private static final int MAX_NUM_THREAD_WAITS = 5;
     private static final int MAX_PROBES = 5;
     private static final int ONE_DAY_IN_SECONDS = 24 * 60 * 60;
+    private static final long IDLE_TIMEOUT_MILLISECONDS = 5 * 60 * 1000;  // 5 minutes in milliseconds
+    private static final long IDLE_TIMEOUT_NOT_ACTIVE_SENTINEL = -1;
+    private long idleTimeoutStartTime = IDLE_TIMEOUT_NOT_ACTIVE_SENTINEL;
+    private boolean exitIfIdle = false;
 
     private StatusUpdateCallback statusUpdateCallback;
 
@@ -91,6 +95,20 @@ public class SiReaderThread extends Thread {
         reportVerboseSiResults = verboseResults;
     }
 
+    public void exitIfIdle() {
+        exitIfIdle = true;
+        idleTimeoutStartTime = System.currentTimeMillis();
+    }
+
+    public void clearExitIfIdle() {
+        exitIfIdle = false;
+        idleTimeoutStartTime = IDLE_TIMEOUT_NOT_ACTIVE_SENTINEL;
+    }
+
+    public boolean siReaderIsStopping() {
+        return (stopRunning);
+    }
+
     @Override
     public void run() {
         // The CardReader returns the timestamps in milliseconds, whereas QRienteering expects
@@ -106,6 +124,7 @@ public class SiReaderThread extends Thread {
         while ((runningThread != null) && (runningThread != this)) {
             try {
                 if (runningThread.isAlive()) {
+                    runningThread.stopThread();
                     Log.i(LogUtil.myLogId, "Detected live thread: " + runningThread + ", waiting for it to exit");
                     if (numWaits > MAX_NUM_THREAD_WAITS) {
                         notifyStatusUpdate("Waited too long for SI reader thread to exit: " + numWaits + " waits.", true);
@@ -134,6 +153,7 @@ public class SiReaderThread extends Thread {
 
         readSiCards();
         if (!stopRunning && runSimulationIfNoSiReader) {
+            Log.i(LogUtil.myLogId, "Thread " + this + " entering simulation mode");
             simulationRun();
         }
 
@@ -141,6 +161,8 @@ public class SiReaderThread extends Thread {
             Log.i(LogUtil.myLogId, "Thread " + this + " exiting, clearing runningThread");
             runningThread = null;
         }
+
+        Log.i(LogUtil.myLogId, "Thread " + this + " exiting naturally");
     }
 
     private static final String ACTION_USB_PERMISSION =
@@ -192,22 +214,7 @@ public class SiReaderThread extends Thread {
 
         SIReader reader = new SIReader(port);
         try {
-            boolean probeSucceeded = false;
-            for (int probeTries = 0; probeTries < MAX_PROBES; probeTries++) {
-                if (reader.probeDevice((m, e) -> notifyStatusUpdate(m, e))) {
-                    probeSucceeded = true;
-                    break;
-                }
-                try {
-                    Log.i(LogUtil.myLogId, "Probe of SI reader failed, try #: " + (probeTries + 1) + ", sending ack and trying again soon.");
-                    reader.sendAck();  // reset the device and retry
-                    Thread.sleep(500);
-                }
-                catch (Exception e) {
-                    // do nothing
-                }
-            }
-            if (probeSucceeded) {
+            if (reader.probeDevice((m, e) -> notifyStatusUpdate(m, e))) {
                 notifyStatusUpdate("Waiting for card insert", false);
                 CardReader cardReader = new CardReader(reader, (m, e) -> notifyStatusUpdate(m, e));
                 CardReader.CardEntry siCard = null;
@@ -233,6 +240,12 @@ public class SiReaderThread extends Thread {
                             // updateStatus(String.format("Read card %d, start %d, finish %d, punches: %s", siCard.cardId, siCard.startTime, siCard.finishTime, punchString));
                         }
                     }
+
+                    // Check to see if the thread is not currently being used and should exit
+                    if (exitIfIdle && (System.currentTimeMillis() > (idleTimeoutStartTime + IDLE_TIMEOUT_MILLISECONDS))) {
+                        stopRunning = true;
+                        break;
+                    }
                 }
             } else {
                 notifyStatusUpdate("SI reader found but cannot communicate, exiting", true);
@@ -250,7 +263,7 @@ public class SiReaderThread extends Thread {
         Random r = new Random();
         int nextResultReport = r.nextInt(10) + 5;
         while (true) {
-            if (stopRunning) {
+            if (stopRunning || !runSimulationIfNoSiReader) {
                 break;
             }
 
@@ -261,9 +274,16 @@ public class SiReaderThread extends Thread {
                 break;
             }
 
-            if (stopRunning) {
+            // No card found, check if idle and should exit
+            if (exitIfIdle && (System.currentTimeMillis() > (idleTimeoutStartTime + IDLE_TIMEOUT_MILLISECONDS))) {
+                stopRunning = true;
                 break;
             }
+
+            if (stopRunning || !runSimulationIfNoSiReader) {
+                break;
+            }
+
 
             nextResultReport--;
             if (nextResultReport <= 0) {

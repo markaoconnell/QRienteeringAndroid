@@ -7,8 +7,4 @@
         android:orderInCategory="103"
         android:title="@string/action_settings"
         app:showAsAction="never" />
-    <item
-        android:id="@+id/action_get_logs"
-        android:orderInCategory="104"
-        android:title="@string/action_get_logs" />
 </menu>

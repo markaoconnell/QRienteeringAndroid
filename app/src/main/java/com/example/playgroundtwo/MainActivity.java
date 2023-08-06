@@ -2,15 +2,19 @@ package com.example.playgroundtwo;
 
 import android.os.Bundle;
 
+import com.example.playgroundtwo.sireader.SiReaderThread;
+import com.example.playgroundtwo.util.LogUtil;
 import com.google.android.material.snackbar.Snackbar;
 
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.View;
 
 import androidx.core.os.HandlerCompat;
+import androidx.fragment.app.Fragment;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
 import androidx.navigation.ui.AppBarConfiguration;
@@ -37,7 +41,8 @@ public class MainActivity extends AppCompatActivity {
 
     private boolean eventAllowsPreregistration = false;
 
-    public static String myLogId = "MOC_QRienteering_Android";
+    private static SiReaderThread siReaderThread;
+    private static Fragment owningFragment;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -133,4 +138,45 @@ public class MainActivity extends AppCompatActivity {
         return(xlatedKey);
     }
 
+    public SiReaderThread getSiReaderThread(Fragment owningFragment) {
+        Log.d(LogUtil.myLogId, "SIReaderThread: owningFragment was " + this.owningFragment + ", now is " + owningFragment + " current thread: " + siReaderThread);
+        this.owningFragment = owningFragment;
+        // See if the old thread, if any, has exited
+        // If the siReaderIsStopping() flag is set, then the thread is on the way to exiting,
+        // even if still alive - but if still alive, return null to force a callback later to retry
+        if (siReaderThread != null) {
+            siReaderThread.clearExitIfIdle();
+            if (siReaderThread.siReaderIsStopping() || !siReaderThread.isAlive()) {
+                if (siReaderThread.isAlive()) {
+                    Log.d(LogUtil.myLogId, "Old thread " + siReaderThread + " still alive, return failure for fragment: " + owningFragment);
+                    return null;
+                }
+                siReaderThread = null;
+            }
+        }
+
+        if (siReaderThread == null) {
+            // Need to start a new thread
+            siReaderThread = new SiReaderThread(this);
+            Log.d(LogUtil.myLogId, "New thread started (" + siReaderThread + ") for owningFragment " + owningFragment);
+        }
+        else {
+            Log.d(LogUtil.myLogId, "Reusing SI reader thread (" + siReaderThread + ") for owningFragment " + owningFragment);
+        }
+
+        return (siReaderThread);
+    }
+
+    public void releaseSIReaderThread(Fragment releasingFragment) {
+        Log.d(LogUtil.myLogId, "Releasing thread (" + siReaderThread + ") for fragment " + releasingFragment + ", owningFragment is " + this.owningFragment);
+
+        if (owningFragment == releasingFragment) {
+            if (siReaderThread != null) {
+                siReaderThread.setStatusUpdateCallback(null);
+                siReaderThread.setSiResultHandler(null);
+                siReaderThread.exitIfIdle();
+            }
+            owningFragment = null;
+        }
+    }
 }
