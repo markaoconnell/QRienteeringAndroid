@@ -96,6 +96,9 @@ public class MainActivity extends AppCompatActivity {
             else if (currentFragId == R.id.massStartFragment) {
                 navController.navigate(R.id.action_massStartFragment_to_settingsFragment);
             }
+            else if (currentFragId == R.id.offlineFragment) {
+                navController.navigate(R.id.action_OfflineFragment_to_settingsFragment);
+            }
             return true;
         }
 

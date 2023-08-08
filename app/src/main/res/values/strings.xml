@@ -35,6 +35,7 @@
     <string name="default_invalid_key">No_key</string>
     <string name="enable_simulation_mode">Enable simulation mode</string>
     <string name="enable_verbose_si_readout">Print verbose SI unit readout</string>
+    <string name="always_allow_offline_mode">Always show offline option</string>
 
 
     <!-- For the individual entries in the finisher / register view -->
@@ -49,6 +50,7 @@
     <!-- To move forward to event management -->
     <string name="run_chosen_event">Use chosen event</string>
     <string name="set_url_and_key_error">URL and access key must be set before using this app</string>
+    <string name="run_offline_button">Run in offline mode</string>
 
 
     <!-- In the results fragment, to go to Mass Start -->
@@ -66,4 +68,7 @@
     <string name="mass_start_use_current_time">Use current time</string>
     <string name="mass_start_choices">Course(s) for a mass start</string>
     <string name="mass_start_button_label">Mass start</string>
+
+    <!-- For the offline fragment -->
+    <string name="offline_title">Offline Results</string>
 </resources>

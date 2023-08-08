@@ -33,6 +33,10 @@
             android:defaultValue="false"
             android:key="@string/enable_verbose_si_readout"
             android:title="@string/enable_verbose_si_readout" />
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="@string/always_allow_offline_mode"
+            android:title="@string/always_allow_offline_mode" />
     </PreferenceCategory>
 
 </PreferenceScreen>

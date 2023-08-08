@@ -46,6 +46,7 @@ public class EventChooserFragment extends Fragment {
         String settingsUrl = sharedPreferences.getString(getResources().getString(R.string.settings_url), defaultInvalidURL);
         String settingsKey = sharedPreferences.getString(getResources().getString(R.string.settings_key), defaultInvalidKey);
         String siteTimeoutString = sharedPreferences.getString(getResources().getString(R.string.settings_site_timeout), "10");
+        boolean alwaysShowOfflineButton = sharedPreferences.getBoolean(getResources().getString(R.string.always_allow_offline_mode), false);
 
         int siteTimeout = 10;
         try {
@@ -58,11 +59,11 @@ public class EventChooserFragment extends Fragment {
         logRetriever = new LogFileRetriever(getContext());
 
         if (settingsUrl.equals(defaultInvalidURL) || settingsKey.equals(defaultInvalidKey)) {
-            binding.buttonFirst.setEnabled(false);
+            binding.useChosenEventButton.setEnabled(false);
             binding.eventChooserStatusField.setText(getResources().getText(R.string.set_url_and_key_error));
             binding.eventChooserStatusField.setTextColor(getResources().getColor(com.google.android.material.R.color.design_default_color_error));
         } else {
-            binding.buttonFirst.setEnabled(false);
+            binding.useChosenEventButton.setEnabled(false);
             binding.eventChooserStatusField.setText("Getting available events");
             binding.eventChooserStatusField.setTextColor(getResources().getColor(com.google.android.material.R.color.design_default_color_primary));
 
@@ -75,19 +76,24 @@ public class EventChooserFragment extends Fragment {
                     xlatedKey = eventGetter.getXlatedKey();
                     chooseEvent(eventGetter);
                 } else if (results.isConnectivityFailure()) {
-                    binding.buttonFirst.setEnabled(false);
+                    binding.useChosenEventButton.setEnabled(false);
                     binding.eventChooserStatusField.setText(String.format("Cannot contact site (%s), please check connectivity - message %s",
                             settingsUrl,
                             results.getFailureException().getMessage()));
                     binding.eventChooserStatusField.setTextColor(getResources().getColor(com.google.android.material.R.color.design_default_color_error));
+                    addOfflineButton();
                 } else {
-                    binding.buttonFirst.setEnabled(false);
+                    binding.useChosenEventButton.setEnabled(false);
                     binding.eventChooserStatusField.setText(String.format("Poorly formatted site URL (%s), please re-enter", settingsUrl));
                     binding.eventChooserStatusField.setTextColor(getResources().getColor(com.google.android.material.R.color.design_default_color_error));
                 }
             });
 
             MainActivity.submitBackgroundTask(eventGetter);
+        }
+
+        if (alwaysShowOfflineButton) {
+            addOfflineButton();
         }
 
         binding.showLogButton.setOnClickListener(new View.OnClickListener() {
@@ -131,7 +137,7 @@ public class EventChooserFragment extends Fragment {
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        binding.buttonFirst.setOnClickListener(new View.OnClickListener() {
+        binding.useChosenEventButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 NavHostFragment.findNavController(EventChooserFragment.this)
@@ -151,7 +157,7 @@ public class EventChooserFragment extends Fragment {
         List<Pair<String, String>> eventList = eventGetter.getEventListResult();
 
         if (eventList.size() == 0) {
-            binding.buttonFirst.setEnabled(false);
+            binding.useChosenEventButton.setEnabled(false);
             binding.eventChooserStatusField.setText("No currently open events");
             binding.eventChooserStatusField.setTextColor(getResources().getColor(com.google.android.material.R.color.design_default_color_error));
         }
@@ -173,7 +179,7 @@ public class EventChooserFragment extends Fragment {
 
             binding.eventChooserLayout.addView(rg);
 
-            binding.buttonFirst.setOnClickListener(new View.OnClickListener() {
+            binding.useChosenEventButton.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
                     int selection = rg.getCheckedRadioButtonId();
@@ -181,7 +187,7 @@ public class EventChooserFragment extends Fragment {
                     useSelectedCourse(chosenEvent, eventGetter.eventSupportsPreregistration(chosenEvent.first));
                 }
             });
-            binding.buttonFirst.setEnabled(true);
+            binding.useChosenEventButton.setEnabled(true);
         }
     }
 
@@ -190,6 +196,17 @@ public class EventChooserFragment extends Fragment {
         ((MainActivity) getActivity()).setEventAndKey(chosenEvent.first, xlatedKey, eventAllowsPreregistration);
         NavHostFragment.findNavController(EventChooserFragment.this)
                 .navigate(R.id.action_EventChooserFragment_to_ResultsFragment);
+    }
+
+    private void addOfflineButton() {
+        binding.runOfflineButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                NavHostFragment.findNavController(EventChooserFragment.this)
+                        .navigate(R.id.action_EventChooserFragment_to_OfflineFragment);
+            }
+        });
+        binding.runOfflineButton.setVisibility(View.VISIBLE);
     }
 
     private void sendLogFileInEmail(String logFilename) {

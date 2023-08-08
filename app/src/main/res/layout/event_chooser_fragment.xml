@@ -18,10 +18,17 @@
             android:orientation="vertical">
 
             <Button
-                android:id="@+id/button_first"
+                android:id="@+id/useChosenEventButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/run_chosen_event" />
+
+            <Button
+                android:id="@+id/runOfflineButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/run_offline_button"
+                android:visibility="gone" />
 
             <TextView
                 android:id="@+id/event_chooser_status_field"

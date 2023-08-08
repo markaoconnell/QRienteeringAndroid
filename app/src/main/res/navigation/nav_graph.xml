@@ -17,6 +17,9 @@
         <action
             android:id="@+id/action_EventChooserFragment_to_settingsFragment"
             app:destination="@id/settingsFragment" />
+        <action
+            android:id="@+id/action_EventChooserFragment_to_OfflineFragment"
+            app:destination="@id/offlineFragment" />
     </fragment>
     <fragment
         android:id="@+id/ResultsFragment"
@@ -49,6 +52,15 @@
         tools:layout="@layout/mass_start_fragment">
         <action
             android:id="@+id/action_massStartFragment_to_settingsFragment"
+            app:destination="@id/settingsFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/offlineFragment"
+        android:name="com.example.playgroundtwo.OfflineFragment"
+        android:label="offline_fragment"
+        tools:layout="@layout/offline_fragment" >
+        <action
+            android:id="@+id/action_OfflineFragment_to_settingsFragment"
             app:destination="@id/settingsFragment" />
     </fragment>
 </navigation>
