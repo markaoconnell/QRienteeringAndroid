@@ -16,6 +16,7 @@
     <string name="event_chooser_fragment_label">QRienteering Event Chooser</string>
     <string name="results_fragment_label">QRienteering Event Manager</string>
     <string name="mass_start_fragment_label">QRienteering Mass Start Courses</string>
+    <string name="offline_fragment_label">QRienteering Offline Mode</string>
     <string name="next">Next</string>
     <string name="previous">Previous</string>
 
