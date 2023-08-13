@@ -1,8 +1,13 @@
+import java.text.SimpleDateFormat
+
 plugins {
     id 'com.android.application'
 }
 
+
 android {
+    final myBuildNum = new Date().format("yyMMddHH").toInteger()
+
     namespace 'com.example.playgroundtwo'
     compileSdk 33
 
@@ -10,8 +15,8 @@ android {
         applicationId "com.example.playgroundtwo"
         minSdk 24
         targetSdk 33
-        versionCode 1
-        versionName "1.0"
+        versionCode myBuildNum
+        versionName "0.1-b-$myBuildNum"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -45,3 +50,4 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
     implementation 'com.github.mik3y:usb-serial-for-android:3.5.1'
 }
+

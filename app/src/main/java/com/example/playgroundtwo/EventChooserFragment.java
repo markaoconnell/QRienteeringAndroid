@@ -2,6 +2,8 @@ package com.example.playgroundtwo;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.util.Pair;
 import android.view.LayoutInflater;
@@ -47,6 +49,17 @@ public class EventChooserFragment extends Fragment {
         String settingsKey = sharedPreferences.getString(getResources().getString(R.string.settings_key), defaultInvalidKey);
         String siteTimeoutString = sharedPreferences.getString(getResources().getString(R.string.settings_site_timeout), "10");
         boolean alwaysShowOfflineButton = sharedPreferences.getBoolean(getResources().getString(R.string.always_allow_offline_mode), false);
+
+        String myAppVersion = "no version found";
+        try {
+            PackageInfo pInfo = getContext().getPackageManager().getPackageInfo(getContext().getPackageName(), 0);
+            myAppVersion = pInfo.versionName;
+        } catch (PackageManager.NameNotFoundException e) {
+            // Nothing to do really, just don't print a version number
+            // e.printStackTrace();
+        }
+
+        binding.versionTextField.setText(binding.versionTextField.getText() + " " + myAppVersion);
 
         int siteTimeout = 10;
         try {

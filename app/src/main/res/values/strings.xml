@@ -23,6 +23,7 @@
     <string name="event_chooser_fragment_info">Event Chooser</string>
     <string name="results_fragment_info">Event Management Page</string>
     <string name="start_up">Initializing</string>
+    <string name="version_text">Version: </string>
 
 
     <!-- Preference Titles -->
