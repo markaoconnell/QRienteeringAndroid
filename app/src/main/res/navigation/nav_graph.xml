@@ -7,7 +7,7 @@
 
     <fragment
         android:id="@+id/EventChooserFragment"
-        android:name="com.example.playgroundtwo.EventChooserFragment"
+        android:name="com.moconnell.qrienteering.EventChooserFragment"
         android:label="@string/event_chooser_fragment_label"
         tools:layout="@layout/event_chooser_fragment">
 
@@ -23,7 +23,7 @@
     </fragment>
     <fragment
         android:id="@+id/ResultsFragment"
-        android:name="com.example.playgroundtwo.ResultsFragment"
+        android:name="com.moconnell.qrienteering.ResultsFragment"
         android:label="@string/results_fragment_label"
         tools:layout="@layout/results_fragment">
 
@@ -39,7 +39,7 @@
     </fragment>
     <fragment
         android:id="@+id/settingsFragment"
-        android:name="com.example.playgroundtwo.SettingsFragment"
+        android:name="com.moconnell.qrienteering.SettingsFragment"
         android:label="SettingsFragment">
         <action
             android:id="@+id/action_settingsFragment_to_EventChooserFragment"
@@ -47,7 +47,7 @@
     </fragment>
     <fragment
         android:id="@+id/massStartFragment"
-        android:name="com.example.playgroundtwo.MassStartFragment"
+        android:name="com.moconnell.qrienteering.MassStartFragment"
         android:label="@string/mass_start_fragment_label"
         tools:layout="@layout/mass_start_fragment">
         <action
@@ -56,7 +56,7 @@
     </fragment>
     <fragment
         android:id="@+id/offlineFragment"
-        android:name="com.example.playgroundtwo.OfflineFragment"
+        android:name="com.moconnell.qrienteering.OfflineFragment"
         android:label="@string/offline_fragment_label"
         tools:layout="@layout/offline_fragment">
         <action

@@ -8,11 +8,11 @@ plugins {
 android {
     final myBuildNum = new Date().format("yyMMddHH").toInteger()
 
-    namespace 'com.example.playgroundtwo'
+    namespace 'com.moconnell.qrienteering'
     compileSdk 33
 
     defaultConfig {
-        applicationId "com.example.playgroundtwo"
+        applicationId "com.moconnell.qrienteering"
         minSdk 24
         targetSdk 33
         versionCode myBuildNum
@@ -24,6 +24,12 @@ android {
     buildTypes {
         release {
             minifyEnabled false
+            debuggable false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            minifyEnabled false
+            debuggable true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
@@ -33,6 +39,7 @@ android {
     }
     buildFeatures {
         viewBinding true
+        dataBinding true
     }
 }
 
