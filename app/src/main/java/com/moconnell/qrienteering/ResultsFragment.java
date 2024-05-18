@@ -372,6 +372,10 @@ public class ResultsFragment extends Fragment {
     }
 
     private void handleLookupResults(UserInfo userInfo) {
+        if (userInfo.getRegisteredStickMsg() != null) {
+            showTextClearError(userInfo.getStatusWidget().statusField, userInfo.getRegisteredStickMsg());
+        }
+
         if (userInfo.getMemberName() != null) {
             userInfo.getStatusWidget().stickMemberName.setText(userInfo.getMemberName());
             userInfo.getStatusWidget().registerNameField.setText(userInfo.getMemberName());

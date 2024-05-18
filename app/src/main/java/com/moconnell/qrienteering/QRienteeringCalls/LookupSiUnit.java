@@ -19,6 +19,13 @@ public class LookupSiUnit extends BaseBackgroundTask {
     private String eventId;
     private boolean checkPreregistrationList = false;
 
+    private static Pattern memberPattern = Pattern.compile("####,MEMBER_ENTRY,.*");
+    private static Pattern registeredPattern = Pattern.compile("####,REGISTERED,.*");
+    private static Pattern classPattern = Pattern.compile("####,CLASSIFICATION_INFO,.*");
+
+
+
+
 
     public LookupSiUnit(UrlCaller caller, String eventId, boolean checkPreregistrationList, UserInfo stickUser) {
         this.urlCaller = caller;
@@ -56,8 +63,14 @@ public class LookupSiUnit extends BaseBackgroundTask {
 
         try {
             String uploadResultsHTML = callResults.getResult();
-            Pattern pattern = Pattern.compile("####,MEMBER_ENTRY,.*");
-            Matcher matcher = pattern.matcher(uploadResultsHTML);
+            Matcher matcher = memberPattern.matcher(uploadResultsHTML);
+
+
+            Matcher registeredMatcher = registeredPattern.matcher(uploadResultsHTML);
+            if (registeredMatcher.find()) {
+                String[] registeredPieces = registeredMatcher.group().split(",");
+                stickUser.setRegisteredStickMsg(registeredPieces[2]);
+            }
 
             if (matcher.find()) {
                 String[] pieces = matcher.group().split(",");
@@ -73,7 +86,6 @@ public class LookupSiUnit extends BaseBackgroundTask {
                     }
                 }
 
-                Pattern classPattern = Pattern.compile("####,CLASSIFICATION_INFO,.*");
                 Matcher classMatcher = classPattern.matcher(uploadResultsHTML);
                 if (classMatcher.find()) {
                     String[] classPieces = classMatcher.group().split(",");

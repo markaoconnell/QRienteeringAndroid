@@ -17,6 +17,7 @@ public class UserInfo {
     private String cellPhone = "";
     private String nreClassificationInfo;
     private StickEntryBinding statusWidget;
+    private String registeredStickMsg;
 
     public UserInfo(SiStickResult stickResults) {
         stickInfo = stickResults;
@@ -101,5 +102,13 @@ public class UserInfo {
 
     public void setNreClassificationInfo(String nreClassificationInfo) {
         this.nreClassificationInfo = nreClassificationInfo;
+    }
+
+    public void setRegisteredStickMsg(String registeredStickMsg) {
+        this.registeredStickMsg = registeredStickMsg;
+    }
+
+    public String getRegisteredStickMsg() {
+        return(this.registeredStickMsg);
     }
 }
