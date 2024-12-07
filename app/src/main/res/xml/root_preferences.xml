@@ -37,6 +37,10 @@
             android:defaultValue="false"
             android:key="@string/always_allow_offline_mode"
             android:title="@string/always_allow_offline_mode" />
+        <SwitchPreference
+            android:defaultValue="true"
+            android:key="@string/auto_choose_if_one_event"
+            android:title="@string/auto_choose_if_one_event" />
     </PreferenceCategory>
 
 </PreferenceScreen>

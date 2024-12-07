@@ -1,5 +1,7 @@
 package com.moconnell.qrienteering;
 
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 
 import com.moconnell.qrienteering.sireader.SiReaderThread;
@@ -56,6 +58,18 @@ public class MainActivity extends AppCompatActivity {
         NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
         appBarConfiguration = new AppBarConfiguration.Builder(navController.getGraph()).build();
         NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
+
+        String myAppVersion = "no version found";
+        try {
+            PackageInfo pInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
+            myAppVersion = pInfo.versionName;
+        } catch (PackageManager.NameNotFoundException e) {
+            // Nothing to do really, just don't print a version number
+            // e.printStackTrace();
+        }
+
+        binding.versionField.setText("Version: " + myAppVersion);
+
 
         binding.fab.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -119,6 +133,8 @@ public class MainActivity extends AppCompatActivity {
     public static Handler getUIHandler() {
         return (mainLoopHandler);
     }
+
+    public void setVersion(String version) { binding.versionField.setText(version); }
 
     public void setEventName(String eventName) {
         binding.textEventNameArea.setText(eventName);

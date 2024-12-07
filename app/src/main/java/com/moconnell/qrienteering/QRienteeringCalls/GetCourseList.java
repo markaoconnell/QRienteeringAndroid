@@ -32,7 +32,7 @@ public class GetCourseList extends BaseBackgroundTask {
     }
 
     public void getCourseList() {
-        String urlString = urlCaller.makeUrlToCall("%s/OMeet/view_results.php?key=%s", String.format("event=%s", eventId));
+        String urlString = urlCaller.makeUrlToCall("%s/OMeet/view_results.php?only_course_list=yes&key=%s", String.format("event=%s", eventId));
         urlCaller.makeUrlCall(urlString);
         callResults = urlCaller.getResults();
 

@@ -11,6 +11,7 @@
     <!-- Default text box values -->
     <string name="default_event_name">No event chosen</string>
     <string name="default_mode">Download mode</string>
+    <string name="default_version">No version found</string>
 
     <!-- Strings used for fragments for navigation -->
     <string name="event_chooser_fragment_label">QRienteering Event Chooser</string>
@@ -38,6 +39,7 @@
     <string name="enable_simulation_mode">Enable simulation mode</string>
     <string name="enable_verbose_si_readout">Print verbose SI unit readout</string>
     <string name="always_allow_offline_mode">Always show offline option</string>
+    <string name="auto_choose_if_one_event">Automatically choose single event</string>
 
 
     <!-- For the individual entries in the finisher / register view -->

@@ -49,17 +49,18 @@ public class EventChooserFragment extends Fragment {
         String settingsKey = sharedPreferences.getString(getResources().getString(R.string.settings_key), defaultInvalidKey);
         String siteTimeoutString = sharedPreferences.getString(getResources().getString(R.string.settings_site_timeout), "10");
         boolean alwaysShowOfflineButton = sharedPreferences.getBoolean(getResources().getString(R.string.always_allow_offline_mode), false);
+        boolean autoChooseIfSingleEvent = sharedPreferences.getBoolean(getResources().getString(R.string.auto_choose_if_one_event), true);
 
-        String myAppVersion = "no version found";
-        try {
-            PackageInfo pInfo = getContext().getPackageManager().getPackageInfo(getContext().getPackageName(), 0);
-            myAppVersion = pInfo.versionName;
-        } catch (PackageManager.NameNotFoundException e) {
-            // Nothing to do really, just don't print a version number
-            // e.printStackTrace();
-        }
-
-        binding.versionTextField.setText(binding.versionTextField.getText() + " " + myAppVersion);
+//        String myAppVersion = "no version found";
+//        try {
+//            PackageInfo pInfo = getContext().getPackageManager().getPackageInfo(getContext().getPackageName(), 0);
+//            myAppVersion = pInfo.versionName;
+//        } catch (PackageManager.NameNotFoundException e) {
+//            // Nothing to do really, just don't print a version number
+//            // e.printStackTrace();
+//        }
+//
+//        binding.versionTextField.setText(binding.versionTextField.getText() + " " + myAppVersion);
 
         int siteTimeout = 10;
         try {
@@ -87,7 +88,7 @@ public class EventChooserFragment extends Fragment {
                 UrlCallResults results = eventGetter.getUrlCallResults();
                 if (results.isSuccess()) {
                     xlatedKey = eventGetter.getXlatedKey();
-                    chooseEvent(eventGetter);
+                    chooseEvent(eventGetter, autoChooseIfSingleEvent);
                 } else if (results.isConnectivityFailure()) {
                     binding.useChosenEventButton.setEnabled(false);
                     binding.eventChooserStatusField.setText(String.format("Cannot contact site (%s), please check connectivity - message %s",
@@ -166,7 +167,7 @@ public class EventChooserFragment extends Fragment {
         binding = null;
     }
 
-    private void chooseEvent(GetEventList eventGetter) {
+    private void chooseEvent(GetEventList eventGetter, boolean autoChooseIfSingleEvent) {
         List<Pair<String, String>> eventList = eventGetter.getEventListResult();
 
         if (eventList.size() == 0) {
@@ -174,7 +175,7 @@ public class EventChooserFragment extends Fragment {
             binding.eventChooserStatusField.setText("No currently open events");
             binding.eventChooserStatusField.setTextColor(getResources().getColor(com.google.android.material.R.color.design_default_color_error));
         }
-        else if (eventList.size() == 1) {
+        else if ((eventList.size() == 1) && autoChooseIfSingleEvent) {
             useSelectedCourse(eventList.get(0), eventGetter.eventSupportsPreregistration(eventList.get(0).first));
         }
         else {

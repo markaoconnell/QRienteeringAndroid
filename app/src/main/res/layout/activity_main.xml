@@ -31,11 +31,11 @@
                 android:text="@string/default_event_name" />
 
             <TextView
-                android:id="@+id/textModeArea"
+                android:id="@+id/versionField"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="@string/default_mode" />
+                android:text="@string/default_version" />
         </LinearLayout>
 
     </com.google.android.material.appbar.AppBarLayout>
